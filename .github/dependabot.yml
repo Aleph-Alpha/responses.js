@@ -1,0 +1,39 @@
+version: 2
+updates:
+  # Enable security updates for npm
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    open-pull-requests-limit: 10
+
+    # Group non-security updates
+    groups:
+      development-dependencies:
+        dependency-type: "development"
+        update-types:
+          - "minor"
+          - "patch"
+
+      production-dependencies:
+        dependency-type: "production"
+        update-types:
+          - "patch"
+
+    # Security updates are always created immediately
+    # and not grouped
+
+    # Semantic versioning strategy
+    versioning-strategy: increase
+
+    # Commit message prefix
+    commit-message:
+      prefix: "security"
+      prefix-development: "build"
+      include: "scope"
+
+  # Enable security updates for Docker
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"

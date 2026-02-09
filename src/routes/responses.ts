@@ -481,6 +481,8 @@ async function* listMcpToolsStream(
 
 	yield {
 		type: "response.mcp_list_tools.in_progress",
+		item_id: outputObject.id,
+		output_index: responseObject.output.length - 1,
 		sequence_number: SEQUENCE_NUMBER_PLACEHOLDER,
 	};
 
@@ -489,6 +491,8 @@ async function* listMcpToolsStream(
 		const mcpTools = await mcp.listTools();
 		yield {
 			type: "response.mcp_list_tools.completed",
+			item_id: outputObject.id,
+			output_index: responseObject.output.length - 1,
 			sequence_number: SEQUENCE_NUMBER_PLACEHOLDER,
 		};
 		outputObject.tools = mcpTools.tools.map((mcpTool) => ({
@@ -508,6 +512,8 @@ async function* listMcpToolsStream(
 		console.error(errorMessage);
 		yield {
 			type: "response.mcp_list_tools.failed",
+			item_id: outputObject.id,
+			output_index: responseObject.output.length - 1,
 			sequence_number: SEQUENCE_NUMBER_PLACEHOLDER,
 		};
 		throw new Error(errorMessage);
@@ -652,6 +658,7 @@ async function* handleOneTurnStream(
 					output_index: responseObject.output.length - 1,
 					content_index: currentOutputMessage.content.length - 1,
 					delta: delta.content as string,
+					logprobs: [],
 					sequence_number: SEQUENCE_NUMBER_PLACEHOLDER,
 				};
 			} else if (currentTextMode === "reasoning") {
@@ -756,7 +763,7 @@ async function* handleOneTurnStream(
 					yield {
 						type:
 							currentOutputItem.type === "mcp_call"
-								? ("response.mcp_call_arguments.delta" as "response.mcp_call.arguments_delta") // bug workaround (see https://github.com/openai/openai-node/issues/1562)
+								? "response.mcp_call_arguments.delta"
 								: "response.function_call_arguments.delta",
 						item_id: currentOutputItem.id as string,
 						output_index: responseObject.output.length - 1,
@@ -819,12 +826,16 @@ async function* callApprovedMCPToolStream(
 		outputObject.error = toolResult.error;
 		yield {
 			type: "response.mcp_call.failed",
+			item_id: outputObject.id,
+			output_index: responseObject.output.length - 1,
 			sequence_number: SEQUENCE_NUMBER_PLACEHOLDER,
 		};
 	} else {
 		outputObject.output = toolResult.output;
 		yield {
 			type: "response.mcp_call.completed",
+			item_id: outputObject.id,
+			output_index: responseObject.output.length - 1,
 			sequence_number: SEQUENCE_NUMBER_PLACEHOLDER,
 		};
 	}
@@ -890,6 +901,7 @@ async function* closeLastOutputItem(
 					output_index: responseObject.output.length - 1,
 					content_index: lastOutputItem.content.length - 1,
 					text: contentPart.text,
+					logprobs: [],
 					sequence_number: SEQUENCE_NUMBER_PLACEHOLDER,
 				};
 
@@ -960,7 +972,7 @@ async function* closeLastOutputItem(
 			};
 		} else if (lastOutputItem?.type === "mcp_call") {
 			yield {
-				type: "response.mcp_call_arguments.done" as "response.mcp_call.arguments_done", // bug workaround (see https://github.com/openai/openai-node/issues/1562)
+				type: "response.mcp_call_arguments.done",
 				item_id: lastOutputItem.id as string,
 				output_index: responseObject.output.length - 1,
 				arguments: lastOutputItem.arguments,
@@ -974,12 +986,16 @@ async function* closeLastOutputItem(
 				lastOutputItem.error = toolResult.error;
 				yield {
 					type: "response.mcp_call.failed",
+					item_id: lastOutputItem.id as string,
+					output_index: responseObject.output.length - 1,
 					sequence_number: SEQUENCE_NUMBER_PLACEHOLDER,
 				};
 			} else {
 				lastOutputItem.output = toolResult.output;
 				yield {
 					type: "response.mcp_call.completed",
+					item_id: lastOutputItem.id as string,
+					output_index: responseObject.output.length - 1,
 					sequence_number: SEQUENCE_NUMBER_PLACEHOLDER,
 				};
 			}
