@@ -3,6 +3,7 @@ import { type ValidatedRequest } from "../middleware/validation.js";
 import type { CreateResponseParams, McpServerParams, McpApprovalRequestParams } from "../schemas.js";
 import { generateUniqueId } from "../lib/generateUniqueId.js";
 import { OpenAI } from "openai";
+import { context, propagation, SpanStatusCode, trace, type Attributes, type Context, type Span } from "@opentelemetry/api";
 import type {
 	Response,
 	ResponseContentPartAddedEvent,
@@ -34,6 +35,11 @@ class StreamingError extends Error {
 
 type IncompleteResponse = Omit<Response, "incomplete_details" | "output_text" | "parallel_tool_calls">;
 const SEQUENCE_NUMBER_PLACEHOLDER = -1;
+const tracer = trace.getTracer("responses.js.routes.responses");
+
+const OTEL_GENAI_CAPTURE_TOOL_CONTENT =
+	process.env.OTEL_GENAI_CAPTURE_TOOL_CONTENT === "1" ||
+	process.env.OTEL_GENAI_CAPTURE_TOOL_CONTENT?.toLowerCase() === "true";
 
 // All headers are forwarded by default, except these ones.
 const NOT_FORWARDED_HEADERS = new Set([
@@ -51,6 +57,38 @@ const NOT_FORWARDED_HEADERS = new Set([
 	"transfer-encoding",
 	"upgrade",
 ]);
+
+const buildJsonAttribute = (value: unknown): string => {
+	if (typeof value === "string") {
+		return value;
+	}
+	try {
+		return JSON.stringify(value);
+	} catch {
+		return String(value);
+	}
+};
+
+const getRequestTraceContext = (req: ValidatedRequest<CreateResponseParams>): Context => {
+	const carrier: Record<string, string> = {};
+	for (const [key, value] of Object.entries(req.headers)) {
+		if (typeof value === "string") {
+			carrier[key] = value;
+		} else if (Array.isArray(value)) {
+			carrier[key] = value.join(",");
+		}
+	}
+
+	return propagation.extract(context.active(), carrier);
+};
+
+const recordError = (span: Span, error: unknown): void => {
+	span.recordException(error instanceof Error ? error : new Error(String(error)));
+	span.setStatus({
+		code: SpanStatusCode.ERROR,
+		message: error instanceof Error ? error.message : String(error),
+	});
+};
 
 export const postCreateResponse = async (
 	req: ValidatedRequest<CreateResponseParams>,
@@ -90,6 +128,23 @@ async function* runCreateResponseStream(
 	req: ValidatedRequest<CreateResponseParams>,
 	res: ExpressResponse
 ): AsyncGenerator<PatchedResponseStreamEvent> {
+	const requestContext = getRequestTraceContext(req);
+	const requestSpan = tracer.startSpan(
+		"responses.create",
+		{
+			attributes: {
+				"gen_ai.operation.name": "chat",
+				"gen_ai.request.model": req.body.model,
+				"gen_ai.request.max_tokens": req.body.max_output_tokens ?? undefined,
+				"gen_ai.request.temperature": req.body.temperature ?? undefined,
+				"gen_ai.request.top_p": req.body.top_p ?? undefined,
+				"gen_ai.response.id": undefined,
+			},
+		},
+		requestContext
+	);
+	const traceContext = trace.setSpan(requestContext, requestSpan);
+
 	let sequenceNumber = 0;
 	// Prepare response object that will be iteratively populated
 	const responseObject: IncompleteResponse = {
@@ -117,6 +172,13 @@ async function* runCreateResponseStream(
 			total_tokens: 0,
 		},
 	};
+	requestSpan.setAttribute("gen_ai.response.id", responseObject.id);
+	// if (req.body.instructions) {
+	// 	requestSpan.setAttribute(
+	// 		"gen_ai.system_instructions",
+	// 		buildJsonAttribute([{ type: "text", content: req.body.instructions }])
+	// 	);
+	// }
 
 	// Response created event
 	yield {
@@ -132,49 +194,65 @@ async function* runCreateResponseStream(
 		sequence_number: sequenceNumber++,
 	};
 
-	// Any events (LLM call, MCP call, list tools, etc.)
 	try {
-		for await (const event of innerRunStream(req, res, responseObject)) {
-			yield { ...event, sequence_number: sequenceNumber++ };
+		// Any events (LLM call, MCP call, list tools, etc.)
+		try {
+			for await (const event of innerRunStream(req, res, responseObject, traceContext)) {
+				yield { ...event, sequence_number: sequenceNumber++ };
+			}
+		} catch (error) {
+			// Error event => stop
+			console.error("Error in stream:", error);
+
+			const message =
+				typeof error === "object" &&
+				error &&
+				"message" in error &&
+				typeof (error as { message: unknown }).message === "string"
+					? (error as { message: string }).message
+					: "An error occurred in stream";
+
+			responseObject.status = "failed";
+			responseObject.error = {
+				code: "server_error",
+				message,
+			};
+			recordError(requestSpan, error);
+			yield {
+				type: "response.failed",
+				response: responseObject as Response,
+				sequence_number: sequenceNumber++,
+			};
+			return;
 		}
-	} catch (error) {
-		// Error event => stop
-		console.error("Error in stream:", error);
 
-		const message =
-			typeof error === "object" &&
-			error &&
-			"message" in error &&
-			typeof (error as { message: unknown }).message === "string"
-				? (error as { message: string }).message
-				: "An error occurred in stream";
-
-		responseObject.status = "failed";
-		responseObject.error = {
-			code: "server_error",
-			message,
-		};
+		// Response completed event
+		responseObject.status = "completed";
+		if (responseObject.usage) {
+			requestSpan.setAttributes({
+				"gen_ai.usage.input_tokens": responseObject.usage.input_tokens,
+				"gen_ai.usage.output_tokens": responseObject.usage.output_tokens,
+			});
+		}
+		requestSpan.setAttributes({
+			"gen_ai.response.model": responseObject.model,
+			"response.status": responseObject.status,
+		});
 		yield {
-			type: "response.failed",
+			type: "response.completed",
 			response: responseObject as Response,
 			sequence_number: sequenceNumber++,
 		};
-		return;
+	} finally {
+		requestSpan.end();
 	}
-
-	// Response completed event
-	responseObject.status = "completed";
-	yield {
-		type: "response.completed",
-		response: responseObject as Response,
-		sequence_number: sequenceNumber++,
-	};
 }
 
 async function* innerRunStream(
 	req: ValidatedRequest<CreateResponseParams>,
 	res: ExpressResponse,
-	responseObject: IncompleteResponse
+	responseObject: IncompleteResponse,
+	traceContext: Context
 ): AsyncGenerator<PatchedResponseStreamEvent> {
 	// Retrieve API key from headers
 	const apiKey = req.headers.authorization?.split(" ")[1];
@@ -228,7 +306,7 @@ async function* innerRunStream(
 					}
 					// Otherwise, list tools from MCP server
 					if (!mcpListTools) {
-						for await (const event of listMcpToolsStream(tool, responseObject)) {
+						for await (const event of listMcpToolsStream(tool, responseObject, traceContext)) {
 							yield event;
 						}
 						mcpListTools = responseObject.output.at(-1) as ResponseOutputItem.McpListTools;
@@ -433,7 +511,8 @@ async function* innerRunStream(
 					approvalRequest,
 					mcpToolsMapping,
 					responseObject,
-					payload
+					payload,
+					traceContext
 				)) {
 					yield event;
 				}
@@ -451,7 +530,7 @@ async function* innerRunStream(
 	do {
 		previousMessageCount = currentMessageCount;
 
-		for await (const event of handleOneTurnStream(apiKey, payload, responseObject, mcpToolsMapping, defaultHeaders)) {
+		for await (const event of handleOneTurnStream(apiKey, payload, responseObject, mcpToolsMapping, defaultHeaders, traceContext)) {
 			yield event;
 		}
 
@@ -462,8 +541,21 @@ async function* innerRunStream(
 
 async function* listMcpToolsStream(
 	tool: McpServerParams,
-	responseObject: IncompleteResponse
+	responseObject: IncompleteResponse,
+	traceContext: Context
 ): AsyncGenerator<PatchedResponseStreamEvent> {
+	const span = tracer.startSpan(
+		"gen_ai.execute_tool",
+		{
+			attributes: {
+				"gen_ai.operation.name": "execute_tool",
+				"gen_ai.tool.name": "mcp.list_tools",
+				"gen_ai.tool.type": "extension",
+				"mcp.server_label": tool.server_label,
+			},
+		},
+		traceContext
+	);
 	const outputObject: ResponseOutputItem.McpListTools = {
 		id: generateUniqueId("mcpl"),
 		type: "mcp_list_tools",
@@ -501,6 +593,7 @@ async function* listMcpToolsStream(
 			annotations: mcpTool.annotations,
 			description: mcpTool.description,
 		}));
+		span.setAttribute("mcp.tools.count", outputObject.tools.length);
 		yield {
 			type: "response.output_item.done",
 			output_index: responseObject.output.length - 1,
@@ -510,6 +603,7 @@ async function* listMcpToolsStream(
 	} catch (error) {
 		const errorMessage = `Failed to list tools from MCP server '${tool.server_label}': ${error instanceof Error ? error.message : "Unknown error"}`;
 		console.error(errorMessage);
+		recordError(span, error);
 		yield {
 			type: "response.mcp_list_tools.failed",
 			item_id: outputObject.id,
@@ -517,6 +611,8 @@ async function* listMcpToolsStream(
 			sequence_number: SEQUENCE_NUMBER_PLACEHOLDER,
 		};
 		throw new Error(errorMessage);
+	} finally {
+		span.end();
 	}
 }
 
@@ -528,8 +624,23 @@ async function* handleOneTurnStream(
 	payload: ChatCompletionCreateParamsStreaming,
 	responseObject: IncompleteResponse,
 	mcpToolsMapping: Record<string, McpServerParams>,
-	defaultHeaders: Record<string, string>
+	defaultHeaders: Record<string, string>,
+	traceContext: Context
 ): AsyncGenerator<PatchedResponseStreamEvent> {
+	const llmSpan = tracer.startSpan(
+		"gen_ai.chat",
+		{
+			attributes: {
+				"gen_ai.operation.name": "chat",
+				"gen_ai.request.model": payload.model,
+				"gen_ai.request.max_tokens": payload.max_tokens ?? undefined,
+				"gen_ai.request.temperature": payload.temperature ?? undefined,
+				"gen_ai.request.top_p": payload.top_p ?? undefined,
+			},
+		},
+		traceContext
+	);
+
 	const client = new OpenAI({
 		baseURL: process.env.OPENAI_BASE_URL ?? "https://router.huggingface.co/v1",
 		apiKey: apiKey,
@@ -541,7 +652,8 @@ async function* handleOneTurnStream(
 	let previousTotalTokens = responseObject.usage?.total_tokens ?? 0;
 	let currentTextMode: "text" | "reasoning" = "text";
 
-	for await (const chunk of stream) {
+	try {
+		for await (const chunk of stream) {
 		if (chunk.usage) {
 			// Overwrite usage with the latest chunk's usage
 			responseObject.usage = {
@@ -566,14 +678,14 @@ async function* handleOneTurnStream(
 			// If start or end of reasoning, skip token and update the current text mode
 			if (reasoningText) {
 				if (currentTextMode === "text") {
-					for await (const event of closeLastOutputItem(responseObject, payload, mcpToolsMapping)) {
+					for await (const event of closeLastOutputItem(responseObject, payload, mcpToolsMapping, traceContext)) {
 						yield event;
 					}
 				}
 				currentTextMode = "reasoning";
 			} else if (delta.content) {
 				if (currentTextMode === "reasoning") {
-					for await (const event of closeLastOutputItem(responseObject, payload, mcpToolsMapping)) {
+					for await (const event of closeLastOutputItem(responseObject, payload, mcpToolsMapping, traceContext)) {
 						yield event;
 					}
 				}
@@ -773,10 +885,22 @@ async function* handleOneTurnStream(
 				}
 			}
 		}
-	}
+		}
 
-	for await (const event of closeLastOutputItem(responseObject, payload, mcpToolsMapping)) {
-		yield event;
+		for await (const event of closeLastOutputItem(responseObject, payload, mcpToolsMapping, traceContext)) {
+			yield event;
+		}
+	} catch (error) {
+		recordError(llmSpan, error);
+		throw error;
+	} finally {
+		if (responseObject.usage) {
+			llmSpan.setAttributes({
+				"gen_ai.usage.input_tokens": responseObject.usage.input_tokens,
+				"gen_ai.usage.output_tokens": responseObject.usage.output_tokens,
+			});
+		}
+		llmSpan.end();
 	}
 }
 
@@ -789,7 +913,8 @@ async function* callApprovedMCPToolStream(
 	approvalRequest: McpApprovalRequestParams | undefined,
 	mcpToolsMapping: Record<string, McpServerParams>,
 	responseObject: IncompleteResponse,
-	payload: ChatCompletionCreateParamsStreaming
+	payload: ChatCompletionCreateParamsStreaming,
+	traceContext: Context
 ): AsyncGenerator<PatchedResponseStreamEvent> {
 	if (!approvalRequest) {
 		throw new Error(`MCP approval request '${approval_request_id}' not found`);
@@ -819,11 +944,40 @@ async function* callApprovedMCPToolStream(
 		sequence_number: SEQUENCE_NUMBER_PLACEHOLDER,
 	};
 
+	const toolSpan = tracer.startSpan(
+		"gen_ai.execute_tool",
+		{
+			attributes: {
+				"gen_ai.operation.name": "execute_tool",
+				"gen_ai.tool.name": approvalRequest.name,
+				"gen_ai.tool.type": "extension",
+				"gen_ai.tool.call.id": outputObject.id,
+				"mcp.server_label": approvalRequest.server_label,
+				...(OTEL_GENAI_CAPTURE_TOOL_CONTENT
+					? {
+						"gen_ai.tool.call.arguments": buildJsonAttribute(approvalRequest.arguments),
+					}
+					: {}),
+			},
+		},
+		traceContext
+	);
+
 	const toolParams = mcpToolsMapping[approvalRequest.name];
-	const toolResult = await callMcpTool(toolParams, approvalRequest.name, approvalRequest.arguments);
+	let toolResult;
+	try {
+		toolResult = await callMcpTool(toolParams, approvalRequest.name, approvalRequest.arguments);
+	} catch (error) {
+		recordError(toolSpan, error);
+		toolSpan.end();
+		throw error;
+	}
 
 	if (toolResult.error) {
 		outputObject.error = toolResult.error;
+		toolSpan.setAttribute("tool.status", "error");
+		toolSpan.setAttribute("tool.error", toolResult.error);
+		recordError(toolSpan, new Error(toolResult.error));
 		yield {
 			type: "response.mcp_call.failed",
 			item_id: outputObject.id,
@@ -832,6 +986,10 @@ async function* callApprovedMCPToolStream(
 		};
 	} else {
 		outputObject.output = toolResult.output;
+		toolSpan.setAttribute("tool.status", "ok");
+		if (OTEL_GENAI_CAPTURE_TOOL_CONTENT) {
+			toolSpan.setAttribute("gen_ai.tool.call.result", buildJsonAttribute(toolResult.output));
+		}
 		yield {
 			type: "response.mcp_call.completed",
 			item_id: outputObject.id,
@@ -870,6 +1028,8 @@ async function* callApprovedMCPToolStream(
 			content: outputObject.output ? outputObject.output : outputObject.error ? `Error: ${outputObject.error}` : "",
 		}
 	);
+
+	toolSpan.end();
 }
 
 function requiresApproval(toolName: string, mcpToolsMapping: Record<string, McpServerParams>): boolean {
@@ -888,7 +1048,8 @@ function requiresApproval(toolName: string, mcpToolsMapping: Record<string, McpS
 async function* closeLastOutputItem(
 	responseObject: IncompleteResponse,
 	payload: ChatCompletionCreateParamsStreaming,
-	mcpToolsMapping: Record<string, McpServerParams>
+	mcpToolsMapping: Record<string, McpServerParams>,
+	traceContext: Context
 ): AsyncGenerator<PatchedResponseStreamEvent> {
 	const lastOutputItem = responseObject.output.at(-1);
 	if (lastOutputItem) {
@@ -981,9 +1142,31 @@ async function* closeLastOutputItem(
 
 			// Call MCP tool
 			const toolParams = mcpToolsMapping[lastOutputItem.name];
-			const toolResult = await callMcpTool(toolParams, lastOutputItem.name, lastOutputItem.arguments);
+			const toolSpanAttributes: Attributes = {
+				"gen_ai.operation.name": "execute_tool",
+				"gen_ai.tool.name": lastOutputItem.name,
+				"gen_ai.tool.type": "extension",
+				"gen_ai.tool.call.id": lastOutputItem.id,
+				"mcp.server_label": lastOutputItem.server_label,
+			};
+			if (OTEL_GENAI_CAPTURE_TOOL_CONTENT) {
+				toolSpanAttributes["gen_ai.tool.call.arguments"] = buildJsonAttribute(lastOutputItem.arguments);
+			}
+			const toolSpan = tracer.startSpan("gen_ai.execute_tool", { attributes: toolSpanAttributes }, traceContext);
+
+			let toolResult;
+			try {
+				toolResult = await callMcpTool(toolParams, lastOutputItem.name, lastOutputItem.arguments);
+			} catch (error) {
+				recordError(toolSpan, error);
+				toolSpan.end();
+				throw error;
+			}
 			if (toolResult.error) {
 				lastOutputItem.error = toolResult.error;
+				toolSpan.setAttribute("tool.status", "error");
+				toolSpan.setAttribute("tool.error", toolResult.error);
+				recordError(toolSpan, new Error(toolResult.error));
 				yield {
 					type: "response.mcp_call.failed",
 					item_id: lastOutputItem.id as string,
@@ -992,6 +1175,10 @@ async function* closeLastOutputItem(
 				};
 			} else {
 				lastOutputItem.output = toolResult.output;
+				toolSpan.setAttribute("tool.status", "ok");
+				if (OTEL_GENAI_CAPTURE_TOOL_CONTENT) {
+					toolSpan.setAttribute("gen_ai.tool.call.result", buildJsonAttribute(toolResult.output));
+				}
 				yield {
 					type: "response.mcp_call.completed",
 					item_id: lastOutputItem.id as string,
@@ -999,6 +1186,7 @@ async function* closeLastOutputItem(
 					sequence_number: SEQUENCE_NUMBER_PLACEHOLDER,
 				};
 			}
+			toolSpan.end();
 
 			yield {
 				type: "response.output_item.done",
