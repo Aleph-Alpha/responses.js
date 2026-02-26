@@ -43,6 +43,20 @@ pnpm dev
 
 The server will be available at `http://localhost:3000`.
 
+### OpenTelemetry (GenAI) tracing
+
+`responses.js` emits OpenTelemetry spans for response execution (`gen_ai.operation.name=chat`) and tool execution (`gen_ai.operation.name=execute_tool`).
+
+- Parent trace context is extracted from incoming propagation headers (`traceparent`/`tracestate`), so spans attach to your upstream instrumentation.
+- Tool metadata is always traced (`gen_ai.tool.name`, `gen_ai.tool.type`, `gen_ai.tool.call.id`, `mcp.server_label`).
+- Tool arguments/results are optional and controlled by:
+
+```bash
+OTEL_GENAI_CAPTURE_TOOL_CONTENT=true
+```
+
+Set it to `false` (or unset) to avoid collecting tool arguments/results in span attributes.
+
 ### Running Examples
 
 Explore the various capabilities with our example scripts located in the [./examples](./examples) folder:
