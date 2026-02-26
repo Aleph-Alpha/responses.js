@@ -274,6 +274,43 @@ async function* innerRunStream(
 		throw new Error(`Not implemented: only 'auto' summary is supported. Got '${req.body.reasoning?.summary}'`);
 	}
 
+	// Trace function tool calls provided by the client in input history
+	if (Array.isArray(req.body.input)) {
+		for (const item of req.body.input) {
+			if (item.type !== "function_call") {
+				continue;
+			}
+
+			const matchingOutput = req.body.input.find(
+				inputItem => inputItem.type === "function_call_output" && inputItem.call_id === item.call_id
+			) as Extract<NonNullable<CreateResponseParams["input"]>[number], { type: "function_call_output" }> | undefined;
+
+			const functionCallSpanAttributes: Attributes = {
+				"gen_ai.operation.name": "execute_tool",
+				"gen_ai.tool.type": "function",
+				"gen_ai.tool.call.id": item.call_id,
+				"gen_ai.tool.name": item.name ?? "unknown_function",
+			};
+
+			if (OTEL_GENAI_CAPTURE_TOOL_CONTENT) {
+				if (item.arguments) {
+					functionCallSpanAttributes["gen_ai.tool.call.arguments"] = buildJsonAttribute(item.arguments);
+				}
+				if (matchingOutput?.output) {
+					functionCallSpanAttributes["gen_ai.tool.call.result"] = buildJsonAttribute(matchingOutput.output);
+				}
+			}
+
+			const functionCallSpan = tracer.startSpan(
+				"gen_ai.execute_tool",
+				{ attributes: functionCallSpanAttributes },
+				traceContext
+			);
+			functionCallSpan.setAttribute("tool.status", matchingOutput ? "ok" : "requested");
+			functionCallSpan.end();
+		}
+	}
+
 	// List MCP tools from server (if required) + prepare tools for the LLM
 	let tools: ChatCompletionTool[] | undefined = [];
 	const mcpToolsMapping: Record<string, McpServerParams> = {};
@@ -1116,6 +1153,21 @@ async function* closeLastOutputItem(
 				sequence_number: SEQUENCE_NUMBER_PLACEHOLDER,
 			};
 		} else if (lastOutputItem?.type === "function_call") {
+			const functionCallSpanAttributes: Attributes = {
+				"gen_ai.operation.name": "execute_tool",
+				"gen_ai.tool.name": lastOutputItem.name,
+				"gen_ai.tool.type": "function",
+				"gen_ai.tool.call.id": lastOutputItem.call_id || lastOutputItem.id,
+			};
+			if (OTEL_GENAI_CAPTURE_TOOL_CONTENT) {
+				functionCallSpanAttributes["gen_ai.tool.call.arguments"] = buildJsonAttribute(lastOutputItem.arguments);
+			}
+			const functionCallSpan = tracer.startSpan(
+				"gen_ai.execute_tool",
+				{ attributes: functionCallSpanAttributes },
+				traceContext
+			);
+
 			yield {
 				type: "response.function_call_arguments.done",
 				item_id: lastOutputItem.id as string,
@@ -1125,12 +1177,14 @@ async function* closeLastOutputItem(
 			};
 
 			lastOutputItem.status = "completed";
+			functionCallSpan.setAttribute("tool.status", "requested");
 			yield {
 				type: "response.output_item.done",
 				output_index: responseObject.output.length - 1,
 				item: lastOutputItem,
 				sequence_number: SEQUENCE_NUMBER_PLACEHOLDER,
 			};
+			functionCallSpan.end();
 		} else if (lastOutputItem?.type === "mcp_call") {
 			yield {
 				type: "response.mcp_call_arguments.done",
