@@ -3,7 +3,17 @@
  */
 
 import { type Request, type Response, type NextFunction } from "express";
+import type { Logger } from "pino";
 import { z } from "zod";
+
+declare global {
+	namespace Express {
+		interface Request {
+			log: Logger;
+			id?: string;
+		}
+	}
+}
 
 /**
  * Middleware to validate request body against a Zod schema
@@ -18,7 +28,7 @@ export function validateBody<T extends z.ZodTypeAny>(schema: T) {
 			next();
 		} catch (error) {
 			if (error instanceof z.ZodError) {
-				console.log(req.body);
+				console.warn("Request validation failed", { validation_errors: error.errors });
 				res.status(400).json({
 					success: false,
 					error: error.errors,
