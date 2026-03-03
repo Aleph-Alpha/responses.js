@@ -38,10 +38,11 @@ import type {
 } from "openai/resources/responses/responses";
 import type { PatchedResponseReasoningItem } from "../../openai_patch.js";
 import type { Context } from "@opentelemetry/api";
+import type { Logger } from "pino";
 
 describe("closeLastOutputItem", () => {
 	const traceContext = {} as Context;
-	const log = createMockLogger() as any;
+	const log = createMockLogger() as unknown as Logger;
 	const basePayload: ChatCompletionCreateParamsStreaming = {
 		model: "test-model",
 		messages: [{ role: "user", content: "Hello" }],
@@ -54,7 +55,9 @@ describe("closeLastOutputItem", () => {
 
 	it("does nothing when output is empty", async () => {
 		const responseObject = createMockResponseObject();
-		const events = await collectEvents(closeLastOutputItem(responseObject, { ...basePayload }, {}, traceContext, log));
+		const events = await collectEvents(
+			closeLastOutputItem(responseObject, { ...basePayload }, new Map(), traceContext, log)
+		);
 		expect(events).toHaveLength(0);
 	});
 
@@ -69,7 +72,9 @@ describe("closeLastOutputItem", () => {
 		};
 		responseObject.output.push(msg);
 
-		const events = await collectEvents(closeLastOutputItem(responseObject, { ...basePayload }, {}, traceContext, log));
+		const events = await collectEvents(
+			closeLastOutputItem(responseObject, { ...basePayload }, new Map(), traceContext, log)
+		);
 		const types = events.map((e) => e.type);
 
 		expect(types).toEqual(["response.output_text.done", "response.content_part.done", "response.output_item.done"]);
@@ -87,7 +92,9 @@ describe("closeLastOutputItem", () => {
 		};
 		responseObject.output.push(reasoning as unknown as ResponseOutputItem);
 
-		const events = await collectEvents(closeLastOutputItem(responseObject, { ...basePayload }, {}, traceContext, log));
+		const events = await collectEvents(
+			closeLastOutputItem(responseObject, { ...basePayload }, new Map(), traceContext, log)
+		);
 		const types = events.map((e) => e.type);
 
 		expect(types).toEqual(["response.reasoning_text.done", "response.content_part.done", "response.output_item.done"]);
@@ -106,7 +113,9 @@ describe("closeLastOutputItem", () => {
 		};
 		responseObject.output.push(fc);
 
-		const events = await collectEvents(closeLastOutputItem(responseObject, { ...basePayload }, {}, traceContext, log));
+		const events = await collectEvents(
+			closeLastOutputItem(responseObject, { ...basePayload }, new Map(), traceContext, log)
+		);
 		const types = events.map((e) => e.type);
 
 		expect(types).toEqual(["response.function_call_arguments.done", "response.output_item.done"]);
@@ -124,16 +133,15 @@ describe("closeLastOutputItem", () => {
 		};
 		responseObject.output.push(mcpCall);
 
-		const mcpToolsMapping = {
-			search: {
-				server_label: "test-server",
-				server_url: "http://localhost:3001",
-				type: "mcp" as const,
-				allowed_tools: null,
-				headers: null,
-				require_approval: "never" as const,
-			},
+		const searchParams = {
+			server_label: "test-server",
+			server_url: "http://localhost:3001",
+			type: "mcp" as const,
+			allowed_tools: null,
+			headers: null,
+			require_approval: "never" as const,
 		};
+		const mcpToolsMapping = new Map([["search", searchParams]]);
 
 		(callMcpTool as ReturnType<typeof vi.fn>).mockResolvedValue({ output: "search results" });
 
@@ -146,7 +154,7 @@ describe("closeLastOutputItem", () => {
 		expect(types).toContain("response.mcp_call_arguments.done");
 		expect(types).toContain("response.mcp_call.completed");
 		expect(types).toContain("response.output_item.done");
-		expect(callMcpTool).toHaveBeenCalledWith(mcpToolsMapping.search, "search", '{"q":"test"}', log);
+		expect(callMcpTool).toHaveBeenCalledWith(searchParams, "search", '{"q":"test"}', log);
 		// Verify payload was updated
 		expect(payload.messages.length).toBeGreaterThan(1);
 	});
@@ -162,16 +170,19 @@ describe("closeLastOutputItem", () => {
 		};
 		responseObject.output.push(mcpCall);
 
-		const mcpToolsMapping = {
-			search: {
-				server_label: "test-server",
-				server_url: "http://localhost:3001",
-				type: "mcp" as const,
-				allowed_tools: null,
-				headers: null,
-				require_approval: "never" as const,
-			},
-		};
+		const mcpToolsMapping = new Map([
+			[
+				"search",
+				{
+					server_label: "test-server",
+					server_url: "http://localhost:3001",
+					type: "mcp" as const,
+					allowed_tools: null,
+					headers: null,
+					require_approval: "never" as const,
+				},
+			],
+		]);
 
 		(callMcpTool as ReturnType<typeof vi.fn>).mockResolvedValue({ error: "tool failed" });
 
@@ -195,7 +206,9 @@ describe("closeLastOutputItem", () => {
 		};
 		responseObject.output.push(approvalReq);
 
-		const events = await collectEvents(closeLastOutputItem(responseObject, { ...basePayload }, {}, traceContext, log));
+		const events = await collectEvents(
+			closeLastOutputItem(responseObject, { ...basePayload }, new Map(), traceContext, log)
+		);
 		const types = events.map((e) => e.type);
 
 		expect(types).toEqual(["response.output_item.done"]);

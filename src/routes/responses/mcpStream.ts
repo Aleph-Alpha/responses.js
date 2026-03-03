@@ -99,7 +99,7 @@ export async function* callApprovedMCPToolStream(
 	approval_request_id: string,
 	mcpCallId: string,
 	approvalRequest: McpApprovalRequestParams | undefined,
-	mcpToolsMapping: Record<string, McpServerParams>,
+	mcpToolsMapping: Map<string, McpServerParams>,
 	responseObject: IncompleteResponse,
 	payload: ChatCompletionCreateParamsStreaming,
 	traceContext: Context,
@@ -145,7 +145,10 @@ export async function* callApprovedMCPToolStream(
 	}
 	const toolSpan = tracer.startSpan("gen_ai.execute_tool", { attributes: toolSpanAttributes }, traceContext);
 
-	const toolParams = mcpToolsMapping[approvalRequest.name];
+	const toolParams = mcpToolsMapping.get(approvalRequest.name);
+	if (!toolParams) {
+		throw new Error(`MCP tool '${approvalRequest.name}' not found in tools mapping`);
+	}
 	let toolResult;
 	try {
 		toolResult = await callMcpTool(toolParams, approvalRequest.name, approvalRequest.arguments, log);

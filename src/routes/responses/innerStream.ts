@@ -80,7 +80,7 @@ export async function* innerRunStream(
 
 	// List MCP tools from server (if required) + prepare tools for the LLM
 	let tools: ChatCompletionTool[] | undefined = [];
-	const mcpToolsMapping: Record<string, McpServerParams> = Object.create(null);
+	const mcpToolsMapping = new Map<string, McpServerParams>();
 	if (req.body.tools) {
 		for (const tool of req.body.tools) {
 			switch (tool.type) {
@@ -124,17 +124,18 @@ export async function* innerRunStream(
 						: [];
 					if (mcpListTools?.tools) {
 						for (const mcpTool of mcpListTools.tools) {
-							if (allowedTools.length === 0 || allowedTools.includes(mcpTool.name)) {
+							const toolName = String(mcpTool.name);
+							if (allowedTools.length === 0 || allowedTools.includes(toolName)) {
 								tools?.push({
 									type: "function" as const,
 									function: {
-										name: mcpTool.name,
+										name: toolName,
 										parameters: mcpTool.input_schema as FunctionParameters,
 										description: mcpTool.description ?? undefined,
 									},
 								});
 							}
-							mcpToolsMapping[mcpTool.name] = tool;
+							mcpToolsMapping.set(toolName, tool);
 						}
 						break;
 					}

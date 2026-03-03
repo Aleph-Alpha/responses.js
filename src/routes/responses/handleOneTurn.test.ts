@@ -54,6 +54,7 @@ import {
 } from "./__test_helpers__/mocks.js";
 import type { ChatCompletionCreateParamsStreaming } from "openai/resources/chat/completions.js";
 import type { Context } from "@opentelemetry/api";
+import type { Logger } from "pino";
 
 function createMockStream(chunks: unknown[]): { [Symbol.asyncIterator]: () => AsyncIterator<unknown> } {
 	return {
@@ -67,7 +68,7 @@ function createMockStream(chunks: unknown[]): { [Symbol.asyncIterator]: () => As
 
 describe("handleOneTurnStream", () => {
 	const traceContext = {} as Context;
-	const log = createMockLogger() as any;
+	const log = createMockLogger() as unknown as Logger;
 
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -85,7 +86,7 @@ describe("handleOneTurnStream", () => {
 
 		const responseObject = createMockResponseObject();
 		const events = await collectEvents(
-			handleOneTurnStream("key", { ...basePayload }, responseObject, {}, {}, traceContext, log)
+			handleOneTurnStream("key", { ...basePayload }, responseObject, new Map(), {}, traceContext, log)
 		);
 
 		const types = events.map((e) => e.type);
@@ -103,7 +104,7 @@ describe("handleOneTurnStream", () => {
 
 		const responseObject = createMockResponseObject();
 		const events = await collectEvents(
-			handleOneTurnStream("key", { ...basePayload }, responseObject, {}, {}, traceContext, log)
+			handleOneTurnStream("key", { ...basePayload }, responseObject, new Map(), {}, traceContext, log)
 		);
 
 		const textDeltas = events
@@ -121,7 +122,9 @@ describe("handleOneTurnStream", () => {
 		mockCreate.mockResolvedValue(createMockStream(chunks));
 
 		const responseObject = createMockResponseObject();
-		await collectEvents(handleOneTurnStream("key", { ...basePayload }, responseObject, {}, {}, traceContext, log));
+		await collectEvents(
+			handleOneTurnStream("key", { ...basePayload }, responseObject, new Map(), {}, traceContext, log)
+		);
 
 		expect(responseObject.usage?.input_tokens).toBe(10);
 		expect(responseObject.usage?.output_tokens).toBe(5);
@@ -138,7 +141,7 @@ describe("handleOneTurnStream", () => {
 
 		const responseObject = createMockResponseObject();
 		const events = await collectEvents(
-			handleOneTurnStream("key", { ...basePayload }, responseObject, {}, {}, traceContext, log)
+			handleOneTurnStream("key", { ...basePayload }, responseObject, new Map(), {}, traceContext, log)
 		);
 
 		const types = events.map((e) => e.type);
@@ -152,16 +155,19 @@ describe("handleOneTurnStream", () => {
 		const chunks = [createToolCallChunk("mcp_tool", undefined, "call_1"), createToolCallChunk(undefined, '{"a":1}')];
 		mockCreate.mockResolvedValue(createMockStream(chunks));
 
-		const mcpToolsMapping = {
-			mcp_tool: {
-				server_label: "test-server",
-				server_url: "http://localhost:3001",
-				type: "mcp" as const,
-				allowed_tools: null,
-				headers: null,
-				require_approval: "never" as const,
-			},
-		};
+		const mcpToolsMapping = new Map([
+			[
+				"mcp_tool",
+				{
+					server_label: "test-server",
+					server_url: "http://localhost:3001",
+					type: "mcp" as const,
+					allowed_tools: null,
+					headers: null,
+					require_approval: "never" as const,
+				},
+			],
+		]);
 
 		// Mock callMcpTool for the closeLastOutputItem call
 		const { callMcpTool } = await import("../../mcp.js");
@@ -184,7 +190,7 @@ describe("handleOneTurnStream", () => {
 
 		const responseObject = createMockResponseObject();
 		const events = await collectEvents(
-			handleOneTurnStream("key", { ...basePayload }, responseObject, {}, {}, traceContext, log)
+			handleOneTurnStream("key", { ...basePayload }, responseObject, new Map(), {}, traceContext, log)
 		);
 
 		const types = events.map((e) => e.type);
@@ -197,7 +203,7 @@ describe("handleOneTurnStream", () => {
 
 		const responseObject = createMockResponseObject();
 		await expect(
-			collectEvents(handleOneTurnStream("key", { ...basePayload }, responseObject, {}, {}, traceContext, log))
+			collectEvents(handleOneTurnStream("key", { ...basePayload }, responseObject, new Map(), {}, traceContext, log))
 		).rejects.toThrow("API error");
 	});
 });

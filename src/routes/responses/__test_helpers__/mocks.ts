@@ -1,5 +1,5 @@
 import { vi } from "vitest";
-import type { Response as ExpressResponse, Request } from "express";
+import type { Response as ExpressResponse } from "express";
 import type { ValidatedRequest } from "../../../middleware/validation.js";
 import type { CreateResponseParams } from "../../../schemas.js";
 import type { IncompleteResponse } from "../types.js";

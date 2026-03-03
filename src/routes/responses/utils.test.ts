@@ -1,4 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect } from "vitest";
+import type { Response as ExpressResponse } from "express";
 import { buildJsonAttribute, requiresApproval, writeWithBackpressure } from "./utils.js";
 import type { McpServerParams } from "../../schemas.js";
 import { createMockRes } from "./__test_helpers__/mocks.js";
@@ -30,79 +31,94 @@ describe("buildJsonAttribute", () => {
 
 describe("requiresApproval", () => {
 	it("returns true when require_approval is 'always'", () => {
-		const mapping: Record<string, McpServerParams> = {
-			tool1: {
-				server_label: "s1",
-				server_url: "http://localhost",
-				type: "mcp",
-				allowed_tools: null,
-				headers: null,
-				require_approval: "always",
-			},
-		};
+		const mapping = new Map<string, McpServerParams>([
+			[
+				"tool1",
+				{
+					server_label: "s1",
+					server_url: "http://localhost",
+					type: "mcp",
+					allowed_tools: null,
+					headers: null,
+					require_approval: "always",
+				},
+			],
+		]);
 		expect(requiresApproval("tool1", mapping)).toBe(true);
 	});
 
 	it("returns false when require_approval is 'never'", () => {
-		const mapping: Record<string, McpServerParams> = {
-			tool1: {
-				server_label: "s1",
-				server_url: "http://localhost",
-				type: "mcp",
-				allowed_tools: null,
-				headers: null,
-				require_approval: "never",
-			},
-		};
+		const mapping = new Map<string, McpServerParams>([
+			[
+				"tool1",
+				{
+					server_label: "s1",
+					server_url: "http://localhost",
+					type: "mcp",
+					allowed_tools: null,
+					headers: null,
+					require_approval: "never",
+				},
+			],
+		]);
 		expect(requiresApproval("tool1", mapping)).toBe(false);
 	});
 
 	it("returns true when tool is in always.tool_names", () => {
-		const mapping: Record<string, McpServerParams> = {
-			tool1: {
-				server_label: "s1",
-				server_url: "http://localhost",
-				type: "mcp",
-				allowed_tools: null,
-				headers: null,
-				require_approval: {
-					always: { tool_names: ["tool1"] },
+		const mapping = new Map<string, McpServerParams>([
+			[
+				"tool1",
+				{
+					server_label: "s1",
+					server_url: "http://localhost",
+					type: "mcp",
+					allowed_tools: null,
+					headers: null,
+					require_approval: {
+						always: { tool_names: ["tool1"] },
+					},
 				},
-			},
-		};
+			],
+		]);
 		expect(requiresApproval("tool1", mapping)).toBe(true);
 	});
 
 	it("returns false when tool is in never.tool_names", () => {
-		const mapping: Record<string, McpServerParams> = {
-			tool1: {
-				server_label: "s1",
-				server_url: "http://localhost",
-				type: "mcp",
-				allowed_tools: null,
-				headers: null,
-				require_approval: {
-					never: { tool_names: ["tool1"] },
+		const mapping = new Map<string, McpServerParams>([
+			[
+				"tool1",
+				{
+					server_label: "s1",
+					server_url: "http://localhost",
+					type: "mcp",
+					allowed_tools: null,
+					headers: null,
+					require_approval: {
+						never: { tool_names: ["tool1"] },
+					},
 				},
-			},
-		};
+			],
+		]);
 		expect(requiresApproval("tool1", mapping)).toBe(false);
 	});
 
 	it("defaults to true when tool is not in any list", () => {
-		const mapping: Record<string, McpServerParams> = {
-			tool1: {
-				server_label: "s1",
-				server_url: "http://localhost",
-				type: "mcp",
-				allowed_tools: null,
-				headers: null,
-				require_approval: {
-					always: { tool_names: ["other_tool"] },
-					never: { tool_names: ["another_tool"] },
+		const mapping = new Map<string, McpServerParams>([
+			[
+				"tool1",
+				{
+					server_label: "s1",
+					server_url: "http://localhost",
+					type: "mcp",
+					allowed_tools: null,
+					headers: null,
+					require_approval: {
+						always: { tool_names: ["other_tool"] },
+						never: { tool_names: ["another_tool"] },
+					},
 				},
-			},
-		};
+			],
+		]);
 		expect(requiresApproval("tool1", mapping)).toBe(true);
 	});
 });
@@ -111,7 +127,7 @@ describe("writeWithBackpressure", () => {
 	it("resolves immediately when write returns true", async () => {
 		const res = createMockRes();
 		res.write.mockReturnValue(true);
-		await writeWithBackpressure(res as unknown as import("express").Response, "test data");
+		await writeWithBackpressure(res as unknown as ExpressResponse, "test data");
 		expect(res.write).toHaveBeenCalledWith("test data");
 	});
 
@@ -126,11 +142,11 @@ describe("writeWithBackpressure", () => {
 			return res;
 		});
 
-		const promise = writeWithBackpressure(res as unknown as import("express").Response, "test data");
+		const promise = writeWithBackpressure(res as unknown as ExpressResponse, "test data");
 
 		// Simulate drain event
 		expect(drainCallback).toBeDefined();
-		drainCallback!();
+		drainCallback?.();
 
 		await promise;
 		expect(res.write).toHaveBeenCalledWith("test data");
@@ -139,18 +155,18 @@ describe("writeWithBackpressure", () => {
 	it("rejects on error event when write returns false", async () => {
 		const res = createMockRes();
 		res.write.mockReturnValue(false);
-		let errorCallback: ((err: Error) => void) | undefined;
-		res.once.mockImplementation((event: string, cb: (err?: Error) => void) => {
+		let errorCallback: Function | undefined;
+		res.once.mockImplementation((event: string, cb: Function) => {
 			if (event === "error") {
-				errorCallback = cb as (err: Error) => void;
+				errorCallback = cb;
 			}
 			return res;
 		});
 
-		const promise = writeWithBackpressure(res as unknown as import("express").Response, "test data");
+		const promise = writeWithBackpressure(res as unknown as ExpressResponse, "test data");
 
 		expect(errorCallback).toBeDefined();
-		errorCallback!(new Error("write error"));
+		errorCallback?.(new Error("write error"));
 
 		await expect(promise).rejects.toThrow("write error");
 	});
