@@ -1,9 +1,5 @@
 import type { ChatCompletionCreateParamsStreaming } from "openai/resources/chat/completions.js";
-import type {
-	ResponseOutputMessage,
-	ResponseFunctionToolCall,
-	ResponseOutputItem,
-} from "openai/resources/responses/responses";
+import type { ResponseOutputItem } from "openai/resources/responses/responses";
 import type {
 	PatchedResponseContentPart,
 	PatchedResponseReasoningItem,
@@ -25,7 +21,7 @@ import { callMcpTool } from "../../mcp.js";
 export async function* closeLastOutputItem(
 	responseObject: IncompleteResponse,
 	payload: ChatCompletionCreateParamsStreaming,
-	mcpToolsMapping: Record<string, McpServerParams>,
+	mcpToolsMapping: Map<string, McpServerParams>,
 	traceContext: Context,
 	log: Logger
 ): AsyncGenerator<PatchedResponseStreamEvent> {
@@ -136,7 +132,10 @@ export async function* closeLastOutputItem(
 			};
 
 			// Call MCP tool
-			const toolParams = mcpToolsMapping[lastOutputItem.name];
+			const toolParams = mcpToolsMapping.get(lastOutputItem.name);
+			if (!toolParams) {
+				throw new Error(`MCP tool '${lastOutputItem.name}' not found in tools mapping`);
+			}
 			const toolSpanAttributes: Attributes = {
 				"gen_ai.operation.name": "execute_tool",
 				"gen_ai.tool.name": lastOutputItem.name,

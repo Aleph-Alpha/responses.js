@@ -121,6 +121,7 @@ describe("postCreateResponse", () => {
 
 	it("yields response.failed on innerRunStream error", async () => {
 		mockInnerRunStream.mockReturnValue(
+			// eslint-disable-next-line require-yield
 			(async function* () {
 				throw new Error("LLM error");
 			})()
@@ -142,6 +143,7 @@ describe("postCreateResponse", () => {
 
 	it("yields response.failed with generic message for non-Error thrown", async () => {
 		mockInnerRunStream.mockReturnValue(
+			// eslint-disable-next-line require-yield
 			(async function* () {
 				throw "string error";
 			})()

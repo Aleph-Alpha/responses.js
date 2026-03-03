@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { validateBody } from "./validation.js";
 import { z } from "zod";
-import type { Request, Response, NextFunction } from "express";
+import type { Request, Response } from "express";
 
 function createMockReq(body: unknown): Request {
 	return { body } as Request;

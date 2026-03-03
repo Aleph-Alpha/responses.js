@@ -52,8 +52,11 @@ export const recordError = (span: Span, error: unknown): void => {
 	});
 };
 
-export function requiresApproval(toolName: string, mcpToolsMapping: Record<string, McpServerParams>): boolean {
-	const toolParams = mcpToolsMapping[toolName];
+export function requiresApproval(toolName: string, mcpToolsMapping: Map<string, McpServerParams>): boolean {
+	const toolParams = mcpToolsMapping.get(toolName);
+	if (!toolParams) {
+		return true; // default to requiring approval if tool not found
+	}
 	return toolParams.require_approval === "always"
 		? true
 		: toolParams.require_approval === "never"

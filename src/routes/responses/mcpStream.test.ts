@@ -38,8 +38,9 @@ import { createMockResponseObject, createMockLogger, collectEvents } from "./__t
 import type { McpServerParams } from "../../schemas.js";
 import type { ChatCompletionCreateParamsStreaming } from "openai/resources/chat/completions.js";
 import type { Context } from "@opentelemetry/api";
+import type { Logger } from "pino";
 
-const log = createMockLogger() as any;
+const log = createMockLogger() as unknown as Logger;
 
 describe("listMcpToolsStream", () => {
 	const traceContext = {} as Context;
@@ -114,7 +115,7 @@ describe("callApprovedMCPToolStream", () => {
 					"req_123",
 					"mcp_123",
 					undefined,
-					{},
+					new Map(),
 					responseObject,
 					{ ...basePayload },
 					traceContext,
@@ -132,16 +133,19 @@ describe("callApprovedMCPToolStream", () => {
 			server_label: "test-server",
 			arguments: '{"q":"test"}',
 		};
-		const mcpToolsMapping: Record<string, McpServerParams> = {
-			search: {
-				server_label: "test-server",
-				server_url: "http://localhost:3001",
-				type: "mcp",
-				allowed_tools: null,
-				headers: null,
-				require_approval: "always",
-			},
-		};
+		const mcpToolsMapping = new Map<string, McpServerParams>([
+			[
+				"search",
+				{
+					server_label: "test-server",
+					server_url: "http://localhost:3001",
+					type: "mcp",
+					allowed_tools: null,
+					headers: null,
+					require_approval: "always",
+				},
+			],
+		]);
 
 		(callMcpTool as ReturnType<typeof vi.fn>).mockResolvedValue({ output: "result" });
 
@@ -177,16 +181,19 @@ describe("callApprovedMCPToolStream", () => {
 			server_label: "test-server",
 			arguments: "{}",
 		};
-		const mcpToolsMapping: Record<string, McpServerParams> = {
-			search: {
-				server_label: "test-server",
-				server_url: "http://localhost:3001",
-				type: "mcp",
-				allowed_tools: null,
-				headers: null,
-				require_approval: "always",
-			},
-		};
+		const mcpToolsMapping = new Map<string, McpServerParams>([
+			[
+				"search",
+				{
+					server_label: "test-server",
+					server_url: "http://localhost:3001",
+					type: "mcp",
+					allowed_tools: null,
+					headers: null,
+					require_approval: "always",
+				},
+			],
+		]);
 
 		(callMcpTool as ReturnType<typeof vi.fn>).mockResolvedValue({ error: "tool failed" });
 

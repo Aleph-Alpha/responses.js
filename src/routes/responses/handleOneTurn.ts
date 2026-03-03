@@ -29,7 +29,7 @@ export async function* handleOneTurnStream(
 	apiKey: string | undefined,
 	payload: ChatCompletionCreateParamsStreaming,
 	responseObject: IncompleteResponse,
-	mcpToolsMapping: Record<string, McpServerParams>,
+	mcpToolsMapping: Map<string, McpServerParams>,
 	defaultHeaders: Record<string, string>,
 	traceContext: Context,
 	log: Logger
@@ -240,13 +240,14 @@ export async function* handleOneTurnStream(
 						| ResponseOutputItem.McpCall
 						| ResponseFunctionToolCall
 						| ResponseOutputItem.McpApprovalRequest;
-					if (functionName in mcpToolsMapping) {
+					const mcpToolParams = mcpToolsMapping.get(functionName);
+					if (mcpToolParams) {
 						if (requiresApproval(functionName, mcpToolsMapping)) {
 							newOutputObject = {
 								id: generateUniqueId("mcpr"),
 								type: "mcp_approval_request",
 								name: functionName,
-								server_label: mcpToolsMapping[functionName].server_label,
+								server_label: mcpToolParams.server_label,
 								arguments: "",
 							};
 						} else {
@@ -254,7 +255,7 @@ export async function* handleOneTurnStream(
 								type: "mcp_call",
 								id: generateUniqueId("mcp"),
 								name: functionName,
-								server_label: mcpToolsMapping[functionName].server_label,
+								server_label: mcpToolParams.server_label,
 								arguments: "",
 							};
 						}
