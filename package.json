@@ -53,7 +53,10 @@
 		"demo:format": "cd demo && npm run format",
 		"demo:start": "cd demo && npm run start",
 		"deploy:spaces": "./push_to_space.sh",
-		"test": "mocha --timeout 20000 \"tests/**/*.test.js\""
+		"test": "vitest run",
+		"test:watch": "vitest",
+		"test:integration": "mocha --timeout 20000 \"tests/**/*.test.js\"",
+		"test:coverage": "vitest run --coverage"
 	},
 	"files": [
 		"src",
@@ -85,6 +88,7 @@
 		"@types/node": "^25.3.3",
 		"@typescript-eslint/eslint-plugin": "^8.54.0",
 		"@typescript-eslint/parser": "^8.54.0",
+		"@vitest/coverage-v8": "^4.0.18",
 		"eslint": "^9.39.2",
 		"eslint-config-prettier": "^10.1.5",
 		"eslint-plugin-prettier": "^5.5.1",
@@ -93,6 +97,7 @@
 		"prettier": "^3.6.2",
 		"tsup": "^8.5.0",
 		"tsx": "^4.20.3",
-		"typescript": "^5.8.3"
+		"typescript": "^5.8.3",
+		"vitest": "^4.0.18"
 	}
 }

@@ -1,0 +1,157 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { buildJsonAttribute, requiresApproval, writeWithBackpressure } from "./utils.js";
+import type { McpServerParams } from "../../schemas.js";
+import { createMockRes } from "./__test_helpers__/mocks.js";
+
+describe("buildJsonAttribute", () => {
+	it("returns strings as-is", () => {
+		expect(buildJsonAttribute("hello")).toBe("hello");
+	});
+
+	it("serializes objects to JSON", () => {
+		expect(buildJsonAttribute({ key: "value" })).toBe('{"key":"value"}');
+	});
+
+	it("serializes arrays to JSON", () => {
+		expect(buildJsonAttribute([1, 2, 3])).toBe("[1,2,3]");
+	});
+
+	it("serializes numbers", () => {
+		expect(buildJsonAttribute(42)).toBe("42");
+	});
+
+	it("falls back to String() for non-serializable values", () => {
+		const circular: Record<string, unknown> = {};
+		circular.self = circular;
+		const result = buildJsonAttribute(circular);
+		expect(result).toBe("[object Object]");
+	});
+});
+
+describe("requiresApproval", () => {
+	it("returns true when require_approval is 'always'", () => {
+		const mapping: Record<string, McpServerParams> = {
+			tool1: {
+				server_label: "s1",
+				server_url: "http://localhost",
+				type: "mcp",
+				allowed_tools: null,
+				headers: null,
+				require_approval: "always",
+			},
+		};
+		expect(requiresApproval("tool1", mapping)).toBe(true);
+	});
+
+	it("returns false when require_approval is 'never'", () => {
+		const mapping: Record<string, McpServerParams> = {
+			tool1: {
+				server_label: "s1",
+				server_url: "http://localhost",
+				type: "mcp",
+				allowed_tools: null,
+				headers: null,
+				require_approval: "never",
+			},
+		};
+		expect(requiresApproval("tool1", mapping)).toBe(false);
+	});
+
+	it("returns true when tool is in always.tool_names", () => {
+		const mapping: Record<string, McpServerParams> = {
+			tool1: {
+				server_label: "s1",
+				server_url: "http://localhost",
+				type: "mcp",
+				allowed_tools: null,
+				headers: null,
+				require_approval: {
+					always: { tool_names: ["tool1"] },
+				},
+			},
+		};
+		expect(requiresApproval("tool1", mapping)).toBe(true);
+	});
+
+	it("returns false when tool is in never.tool_names", () => {
+		const mapping: Record<string, McpServerParams> = {
+			tool1: {
+				server_label: "s1",
+				server_url: "http://localhost",
+				type: "mcp",
+				allowed_tools: null,
+				headers: null,
+				require_approval: {
+					never: { tool_names: ["tool1"] },
+				},
+			},
+		};
+		expect(requiresApproval("tool1", mapping)).toBe(false);
+	});
+
+	it("defaults to true when tool is not in any list", () => {
+		const mapping: Record<string, McpServerParams> = {
+			tool1: {
+				server_label: "s1",
+				server_url: "http://localhost",
+				type: "mcp",
+				allowed_tools: null,
+				headers: null,
+				require_approval: {
+					always: { tool_names: ["other_tool"] },
+					never: { tool_names: ["another_tool"] },
+				},
+			},
+		};
+		expect(requiresApproval("tool1", mapping)).toBe(true);
+	});
+});
+
+describe("writeWithBackpressure", () => {
+	it("resolves immediately when write returns true", async () => {
+		const res = createMockRes();
+		res.write.mockReturnValue(true);
+		await writeWithBackpressure(res as unknown as import("express").Response, "test data");
+		expect(res.write).toHaveBeenCalledWith("test data");
+	});
+
+	it("waits for drain event when write returns false", async () => {
+		const res = createMockRes();
+		res.write.mockReturnValue(false);
+		let drainCallback: (() => void) | undefined;
+		res.once.mockImplementation((event: string, cb: () => void) => {
+			if (event === "drain") {
+				drainCallback = cb;
+			}
+			return res;
+		});
+
+		const promise = writeWithBackpressure(res as unknown as import("express").Response, "test data");
+
+		// Simulate drain event
+		expect(drainCallback).toBeDefined();
+		drainCallback!();
+
+		await promise;
+		expect(res.write).toHaveBeenCalledWith("test data");
+	});
+
+	it("rejects on error event when write returns false", async () => {
+		const res = createMockRes();
+		res.write.mockReturnValue(false);
+		let errorCallback: ((err: Error) => void) | undefined;
+		res.once.mockImplementation((event: string, cb: (err?: Error) => void) => {
+			if (event === "error") {
+				errorCallback = cb as (err: Error) => void;
+			}
+			return res;
+		});
+
+		const promise = writeWithBackpressure(res as unknown as import("express").Response, "test data");
+
+		expect(errorCallback).toBeDefined();
+		errorCallback!(new Error("write error"));
+
+		await expect(promise).rejects.toThrow("write error");
+	});
+});
