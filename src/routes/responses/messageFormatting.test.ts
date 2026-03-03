@@ -229,6 +229,27 @@ describe("formatInputToMessages", () => {
 		]);
 	});
 
+	it("maps mcp_list_tools to tool message with interpolated server_label", () => {
+		const result = formatInputToMessages(
+			[
+				{
+					type: "mcp_list_tools" as const,
+					id: "mcp_lt_123",
+					server_label: "my-server",
+					tools: [],
+				},
+			],
+			null
+		);
+		expect(result).toEqual([
+			{
+				role: "tool",
+				content: "MCP list tools. Server: 'my-server'.",
+				tool_call_id: "mcp_list_tools",
+			},
+		]);
+	});
+
 	it("filters undefined messages from developer role", () => {
 		const result = formatInputToMessages(
 			[

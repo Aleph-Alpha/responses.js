@@ -133,6 +133,11 @@ export async function* callApprovedMCPToolStream(
 		sequence_number: SEQUENCE_NUMBER_PLACEHOLDER,
 	};
 
+	const toolParams = mcpToolsMapping.get(approvalRequest.name);
+	if (!toolParams) {
+		throw new Error(`MCP tool '${approvalRequest.name}' not found in tools mapping`);
+	}
+
 	const toolSpanAttributes: Attributes = {
 		"gen_ai.operation.name": "execute_tool",
 		"gen_ai.tool.name": approvalRequest.name,
@@ -144,11 +149,6 @@ export async function* callApprovedMCPToolStream(
 		toolSpanAttributes["gen_ai.tool.call.arguments"] = buildJsonAttribute(approvalRequest.arguments);
 	}
 	const toolSpan = tracer.startSpan("gen_ai.execute_tool", { attributes: toolSpanAttributes }, traceContext);
-
-	const toolParams = mcpToolsMapping.get(approvalRequest.name);
-	if (!toolParams) {
-		throw new Error(`MCP tool '${approvalRequest.name}' not found in tools mapping`);
-	}
 	let toolResult;
 	try {
 		toolResult = await callMcpTool(toolParams, approvalRequest.name, approvalRequest.arguments, log);

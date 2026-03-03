@@ -134,8 +134,8 @@ export async function* innerRunStream(
 										description: mcpTool.description ?? undefined,
 									},
 								});
+								mcpToolsMapping.set(toolName, tool);
 							}
-							mcpToolsMapping.set(toolName, tool);
 						}
 						break;
 					}

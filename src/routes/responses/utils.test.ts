@@ -134,40 +134,40 @@ describe("writeWithBackpressure", () => {
 	it("waits for drain event when write returns false", async () => {
 		const res = createMockRes();
 		res.write.mockReturnValue(false);
-		let drainCallback: (() => void) | undefined;
-		res.once.mockImplementation((event: string, cb: () => void) => {
-			if (event === "drain") {
-				drainCallback = cb;
-			}
+		const listeners: Record<string, Function> = {};
+		res.once.mockImplementation((event: string, cb: Function) => {
+			listeners[event] = cb;
 			return res;
 		});
 
 		const promise = writeWithBackpressure(res as unknown as ExpressResponse, "test data");
 
 		// Simulate drain event
-		expect(drainCallback).toBeDefined();
-		drainCallback?.();
+		expect(listeners["drain"]).toBeDefined();
+		listeners["drain"]();
 
 		await promise;
 		expect(res.write).toHaveBeenCalledWith("test data");
+		// Verify error listener was cleaned up
+		expect(res.off).toHaveBeenCalledWith("error", listeners["error"]);
 	});
 
 	it("rejects on error event when write returns false", async () => {
 		const res = createMockRes();
 		res.write.mockReturnValue(false);
-		let errorCallback: Function | undefined;
+		const listeners: Record<string, Function> = {};
 		res.once.mockImplementation((event: string, cb: Function) => {
-			if (event === "error") {
-				errorCallback = cb;
-			}
+			listeners[event] = cb;
 			return res;
 		});
 
 		const promise = writeWithBackpressure(res as unknown as ExpressResponse, "test data");
 
-		expect(errorCallback).toBeDefined();
-		errorCallback?.(new Error("write error"));
+		expect(listeners["error"]).toBeDefined();
+		listeners["error"](new Error("write error"));
 
 		await expect(promise).rejects.toThrow("write error");
+		// Verify drain listener was cleaned up
+		expect(res.off).toHaveBeenCalledWith("drain", listeners["drain"]);
 	});
 });

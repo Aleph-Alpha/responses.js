@@ -35,6 +35,7 @@ export function createMockRes(): Partial<ExpressResponse> & Record<string, Retur
 		json: vi.fn(),
 		status: vi.fn().mockReturnThis(),
 		once: vi.fn(),
+		off: vi.fn(),
 	};
 }
 

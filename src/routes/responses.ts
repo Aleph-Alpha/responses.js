@@ -21,7 +21,6 @@ export const postCreateResponse = async (
 	if (req.body.stream) {
 		res.setHeader("Content-Type", "text/event-stream");
 		res.setHeader("Connection", "keep-alive");
-		res.setHeader("Cache-Control", "no-cache");
 		res.setHeader("X-Accel-Buffering", "no");
 		log.debug("Processing streaming response");
 		for await (const event of events) {
