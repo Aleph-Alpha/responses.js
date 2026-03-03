@@ -1,0 +1,78 @@
+import { type Response as ExpressResponse } from "express";
+import { context, propagation, SpanStatusCode, type Context, type Span } from "@opentelemetry/api";
+import type { ValidatedRequest } from "../../middleware/validation.js";
+import type { CreateResponseParams, McpServerParams } from "../../schemas.js";
+
+// All headers are forwarded by default, except these ones.
+export const NOT_FORWARDED_HEADERS = new Set([
+	"accept",
+	"accept-encoding",
+	"authorization",
+	"connection",
+	"content-length",
+	"content-type",
+	"host",
+	"keep-alive",
+	"te",
+	"trailer",
+	"trailers",
+	"transfer-encoding",
+	"upgrade",
+]);
+
+export const buildJsonAttribute = (value: unknown): string => {
+	if (typeof value === "string") {
+		return value;
+	}
+	try {
+		return JSON.stringify(value);
+	} catch {
+		return String(value);
+	}
+};
+
+export const getRequestTraceContext = (req: ValidatedRequest<CreateResponseParams>): Context => {
+	const carrier: Record<string, string> = {};
+	for (const [key, value] of Object.entries(req.headers)) {
+		if (typeof value === "string") {
+			carrier[key] = value;
+		} else if (Array.isArray(value)) {
+			carrier[key] = value.join(",");
+		}
+	}
+
+	return propagation.extract(context.active(), carrier);
+};
+
+export const recordError = (span: Span, error: unknown): void => {
+	span.recordException(error instanceof Error ? error : new Error(String(error)));
+	span.setStatus({
+		code: SpanStatusCode.ERROR,
+		message: error instanceof Error ? error.message : String(error),
+	});
+};
+
+export function requiresApproval(toolName: string, mcpToolsMapping: Record<string, McpServerParams>): boolean {
+	const toolParams = mcpToolsMapping[toolName];
+	return toolParams.require_approval === "always"
+		? true
+		: toolParams.require_approval === "never"
+			? false
+			: toolParams.require_approval.always?.tool_names?.includes(toolName)
+				? true
+				: toolParams.require_approval.never?.tool_names?.includes(toolName)
+					? false
+					: true; // behavior is undefined in specs, let's default to true
+}
+
+export function writeWithBackpressure(res: ExpressResponse, data: string): Promise<void> {
+	return new Promise<void>((resolve, reject) => {
+		const canContinue = res.write(data);
+		if (canContinue) {
+			resolve();
+		} else {
+			res.once("drain", resolve);
+			res.once("error", reject);
+		}
+	});
+}

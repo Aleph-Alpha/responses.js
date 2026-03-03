@@ -59,6 +59,8 @@ export default [
 				xdescribe: "readonly",
 				xit: "readonly",
 				xtest: "readonly",
+				expect: "readonly",
+				vi: "readonly",
 			},
 		},
 	},
