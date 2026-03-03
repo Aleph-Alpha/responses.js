@@ -129,7 +129,7 @@ export async function* handleOneTurnStream(
 						// Response output item added event
 						yield {
 							type: "response.output_item.added",
-							output_index: 0,
+							output_index: responseObject.output.length - 1,
 							item: outputObject,
 							sequence_number: SEQUENCE_NUMBER_PLACEHOLDER,
 						};
@@ -148,7 +148,7 @@ export async function* handleOneTurnStream(
 						// Response output item added event
 						yield {
 							type: "response.output_item.added",
-							output_index: 0,
+							output_index: responseObject.output.length - 1,
 							item: outputObject,
 							sequence_number: SEQUENCE_NUMBER_PLACEHOLDER,
 						};

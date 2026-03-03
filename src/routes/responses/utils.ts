@@ -73,9 +73,20 @@ export function writeWithBackpressure(res: ExpressResponse, data: string): Promi
 		const canContinue = res.write(data);
 		if (canContinue) {
 			resolve();
-		} else {
-			res.once("drain", resolve);
-			res.once("error", reject);
+			return;
 		}
+
+		const onDrain = (): void => {
+			res.off("error", onError);
+			resolve();
+		};
+
+		const onError = (err: Error): void => {
+			res.off("drain", onDrain);
+			reject(err);
+		};
+
+		res.once("drain", onDrain);
+		res.once("error", onError);
 	});
 }

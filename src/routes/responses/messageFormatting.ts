@@ -75,7 +75,7 @@ export function formatInputToMessages(
 						case "mcp_list_tools": {
 							return {
 								role: "tool" as const,
-								content: "MCP list tools. Server: '${item.server_label}'.",
+								content: `MCP list tools. Server: '${item.server_label}'.`,
 								tool_call_id: "mcp_list_tools",
 							};
 						}
