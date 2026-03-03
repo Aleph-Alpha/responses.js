@@ -34,6 +34,7 @@ import type {
 } from "openai/resources/chat/completions.js";
 import type { FunctionParameters } from "openai/resources/shared.js";
 import { callMcpTool, connectMcpServer } from "../mcp.js";
+import { Agent } from "undici";
 
 class StreamingError extends Error {
 	constructor(message: string) {
@@ -705,6 +706,9 @@ async function* handleOneTurnStream(
 		baseURL: process.env.OPENAI_BASE_URL ?? "https://router.huggingface.co/v1",
 		apiKey: apiKey,
 		defaultHeaders,
+		fetchOptions: {
+			dispatcher: new Agent({ allowH2: true }),
+		},
 	});
 	const stream = await client.chat.completions.create(payload);
 	let previousInputTokens = responseObject.usage?.input_tokens ?? 0;
