@@ -59,13 +59,13 @@ export async function* handleOneTurnStream(
 	});
 	const modelCallStart = performance.now();
 	let modelCallStatusCode = 200;
-	const stream = await client.chat.completions.create(payload);
-	let previousInputTokens = responseObject.usage?.input_tokens ?? 0;
-	let previousOutputTokens = responseObject.usage?.output_tokens ?? 0;
-	let previousTotalTokens = responseObject.usage?.total_tokens ?? 0;
-	let currentTextMode: "text" | "reasoning" = "text";
-
 	try {
+		const stream = await client.chat.completions.create(payload);
+		let previousInputTokens = responseObject.usage?.input_tokens ?? 0;
+		let previousOutputTokens = responseObject.usage?.output_tokens ?? 0;
+		let previousTotalTokens = responseObject.usage?.total_tokens ?? 0;
+		let currentTextMode: "text" | "reasoning" = "text";
+
 		for await (const chunk of stream) {
 			if (chunk.usage) {
 				// Overwrite usage with the latest chunk's usage

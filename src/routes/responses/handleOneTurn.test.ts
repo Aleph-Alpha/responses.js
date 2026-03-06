@@ -3,11 +3,18 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // Mock OpenAI — must be a class so `new OpenAI(...)` works
 const mockCreate = vi.fn();
 vi.mock("openai", () => {
-	return {
-		OpenAI: class {
-			chat = { completions: { create: mockCreate } };
-		},
+	class APIError extends Error {
+		status: number;
+		constructor(message: string, status: number) {
+			super(message);
+			this.status = status;
+		}
+	}
+	const OpenAI = class {
+		chat = { completions: { create: mockCreate } };
+		static APIError = APIError;
 	};
+	return { OpenAI };
 });
 
 // Mock opentelemetry
@@ -61,7 +68,7 @@ import {
 	collectEvents,
 } from "./__test_helpers__/mocks.js";
 import type { ChatCompletionCreateParamsStreaming } from "openai/resources/chat/completions.js";
-import type { Context } from "@opentelemetry/api";
+import { trace, SpanStatusCode, type Context } from "@opentelemetry/api";
 import type { Logger } from "pino";
 
 function createMockStream(chunks: unknown[]): { [Symbol.asyncIterator]: () => AsyncIterator<unknown> } {
@@ -213,5 +220,25 @@ describe("handleOneTurnStream", () => {
 		await expect(
 			collectEvents(handleOneTurnStream("key", { ...basePayload }, responseObject, new Map(), {}, traceContext, log))
 		).rejects.toThrow("API error");
+	});
+
+	it("ends span and records error when client.chat.completions.create() rejects", async () => {
+		const createError = new Error("auth failure");
+		mockCreate.mockRejectedValue(createError);
+
+		// Get a reference to the mock span via the mocked tracer
+		const mockSpan = trace.getTracer("").startSpan("");
+
+		const responseObject = createMockResponseObject();
+		await expect(
+			collectEvents(handleOneTurnStream("key", { ...basePayload }, responseObject, new Map(), {}, traceContext, log))
+		).rejects.toThrow("auth failure");
+
+		expect(mockSpan.recordException).toHaveBeenCalledWith(createError);
+		expect(mockSpan.setStatus).toHaveBeenCalledWith({
+			code: SpanStatusCode.ERROR,
+			message: "auth failure",
+		});
+		expect(mockSpan.end).toHaveBeenCalled();
 	});
 });
