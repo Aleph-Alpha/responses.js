@@ -7,6 +7,7 @@ import type { Logger } from "pino";
 
 import type { McpServerParams } from "./schemas";
 import { McpResultFormatter } from "./lib/McpResultFormatter";
+import { mcpToolCallCounter, mcpToolCallDuration } from "./lib/metrics.js";
 
 export async function connectMcpServer(mcpServer: McpServerParams, log: Logger): Promise<Client> {
 	const mcp = new Client({ name: "@huggingface/responses.js", version: packageVersion });
@@ -39,6 +40,8 @@ export async function callMcpTool(
 	argumentsString: string,
 	log: Logger
 ): Promise<{ error: string; output?: undefined } | { error?: undefined; output: string }> {
+	const start = performance.now();
+	let statusCode = 200;
 	try {
 		const client = await connectMcpServer(mcpServer, log);
 		const toolArgs: Record<string, unknown> = argumentsString === "" ? {} : JSON.parse(argumentsString);
@@ -49,10 +52,16 @@ export async function callMcpTool(
 			output: formattedResult,
 		};
 	} catch (error) {
+		statusCode = 500;
 		const errorMessage =
 			error instanceof Error ? error.message : typeof error === "string" ? error : JSON.stringify(error);
 		return {
 			error: errorMessage,
 		};
+	} finally {
+		const durationSeconds = (performance.now() - start) / 1000;
+		const metricAttrs = { status_code: statusCode, tool_name: toolName, server_label: mcpServer.server_label };
+		mcpToolCallCounter.add(1, metricAttrs);
+		mcpToolCallDuration.record(durationSeconds, metricAttrs);
 	}
 }

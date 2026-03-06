@@ -19,10 +19,18 @@ vi.mock("@opentelemetry/api", () => {
 		setStatus: vi.fn(),
 		end: vi.fn(),
 	};
+	const mockCounter = { add: vi.fn() };
+	const mockHistogram = { record: vi.fn() };
 	return {
 		trace: {
 			getTracer: vi.fn().mockReturnValue({
 				startSpan: vi.fn().mockReturnValue(mockSpan),
+			}),
+		},
+		metrics: {
+			getMeter: vi.fn().mockReturnValue({
+				createCounter: vi.fn().mockReturnValue(mockCounter),
+				createHistogram: vi.fn().mockReturnValue(mockHistogram),
 			}),
 		},
 		context: { active: vi.fn() },
