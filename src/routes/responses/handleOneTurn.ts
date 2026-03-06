@@ -21,6 +21,7 @@ import type { Logger } from "pino";
 import { type IncompleteResponse, StreamingError, SEQUENCE_NUMBER_PLACEHOLDER, tracer } from "./types.js";
 import { recordError, requiresApproval } from "./utils.js";
 import { closeLastOutputItem } from "./closeOutputItem.js";
+import { modelCallCounter, modelCallDuration } from "../../lib/metrics.js";
 
 /*
  * Call LLM and stream the response.
@@ -56,6 +57,8 @@ export async function* handleOneTurnStream(
 			dispatcher: new Agent({ allowH2: true }),
 		},
 	});
+	const modelCallStart = performance.now();
+	let modelCallStatusCode = 200;
 	const stream = await client.chat.completions.create(payload);
 	let previousInputTokens = responseObject.usage?.input_tokens ?? 0;
 	let previousOutputTokens = responseObject.usage?.output_tokens ?? 0;
@@ -314,9 +317,18 @@ export async function* handleOneTurnStream(
 			yield event;
 		}
 	} catch (error) {
+		if (error instanceof OpenAI.APIError) {
+			modelCallStatusCode = error.status ?? 500;
+		} else {
+			modelCallStatusCode = 500;
+		}
 		recordError(llmSpan, error);
 		throw error;
 	} finally {
+		const modelCallDurationSeconds = (performance.now() - modelCallStart) / 1000;
+		const metricAttrs = { status_code: modelCallStatusCode, model_name: payload.model };
+		modelCallCounter.add(1, metricAttrs);
+		modelCallDuration.record(modelCallDurationSeconds, metricAttrs);
 		if (responseObject.usage) {
 			llmSpan.setAttributes({
 				"gen_ai.usage.input_tokens": responseObject.usage.input_tokens,
