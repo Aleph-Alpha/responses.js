@@ -57,6 +57,16 @@ OTEL_GENAI_CAPTURE_TOOL_CONTENT=true
 
 Set it to `false` (or unset) to avoid collecting tool arguments/results in span attributes.
 
+#### Disabling OpenTelemetry
+
+If no OTel collector is running, you can suppress tracing, metrics, and diagnostic noise by setting:
+
+```bash
+OTEL_DISABLED=true   # or "1"
+```
+
+When set, `trace.disable()`, `metrics.disable()`, and a no-op diagnostic logger are applied at startup.
+
 ### Running Examples
 
 Explore the various capabilities with our example scripts located in the [./examples](./examples) folder:
