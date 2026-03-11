@@ -42,5 +42,8 @@ export function buildLLMPayload(
 					: undefined,
 		tools,
 		top_p: body.top_p,
+		stream_options: {
+			include_usage: true,
+		},
 	};
 }
