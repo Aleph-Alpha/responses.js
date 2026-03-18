@@ -187,6 +187,10 @@ export async function* innerRunStream(
 	// New messages can be added if the LLM calls an MCP tool that is automatically run.
 	// A maximum number of iterations is set to avoid infinite loops.
 	let previousMessageCount: number;
+	// Set to True if one of the conditions are detected:
+	// - there is a function call in the output without a corresponding function_call_output in the input
+	// - there is an MCP call in the output requesting approval without a corresponding approval_response in the input
+	let hasUserTask = false;
 	let currentMessageCount = payload.messages.length;
 	const MAX_ITERATIONS = 5; // hard-coded
 	let iterations = 0;
@@ -205,7 +209,21 @@ export async function* innerRunStream(
 			yield event;
 		}
 
+		// Check if the model requested actions that need to be handled by the user/client:
+		// - function_call without a corresponding function_call_output (matched by call_id)
+		// - mcp_approval_request without a corresponding mcp_approval_response (matched by id/approval_request_id)
+		const inputItems = Array.isArray(req.body.input) ? req.body.input : [];
+		hasUserTask = responseObject.output.some((item) => {
+			if (item.type === "function_call") {
+				return !inputItems.some((i) => i.type === "function_call_output" && i.call_id === item.call_id);
+			}
+			if (item.type === "mcp_approval_request") {
+				return !inputItems.some((i) => i.type === "mcp_approval_response" && i.approval_request_id === item.id);
+			}
+			return false;
+		});
+
 		currentMessageCount = payload.messages.length;
 		iterations++;
-	} while (currentMessageCount > previousMessageCount && iterations < MAX_ITERATIONS);
+	} while (currentMessageCount > previousMessageCount && iterations < MAX_ITERATIONS && !hasUserTask);
 }

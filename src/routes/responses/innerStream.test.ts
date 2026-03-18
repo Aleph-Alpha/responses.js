@@ -45,6 +45,7 @@ vi.mock("./mcpStream.js", () => ({
 }));
 
 import { innerRunStream } from "./innerStream.js";
+import { callApprovedMCPToolStream } from "./mcpStream.js";
 import { createMockReq, createMockRes, createMockResponseObject, collectEvents } from "./__test_helpers__/mocks.js";
 import type { Context } from "@opentelemetry/api";
 
@@ -205,5 +206,134 @@ describe("innerRunStream", () => {
 		expect(defaultHeaders["content-type"]).toBeUndefined();
 		expect(defaultHeaders["host"]).toBeUndefined();
 		expect(defaultHeaders["authorization"]).toBeUndefined();
+	});
+
+	it("stops loop when output has both an unresolved function_call and mcp_approval_request", async () => {
+		mockHandleOneTurnStream.mockImplementation((_apiKey, payload, responseObject) => {
+			// Simulate the model returning both an MCP call (auto-executed, adds messages)
+			// and a function_call + mcp_approval_request that need user action
+			payload.messages.push(
+				{
+					role: "assistant",
+					tool_calls: [{ id: "mcp_test1", type: "function", function: { name: "search", arguments: "{}" } }],
+				},
+				{ role: "tool", tool_call_id: "mcp_test1", content: "search result" }
+			);
+			responseObject.output.push(
+				{
+					type: "mcp_call",
+					id: "mcp_test1",
+					name: "search",
+					server_label: "gitmcp",
+					arguments: "{}",
+					output: "search result",
+					status: "completed",
+				},
+				{
+					type: "function_call",
+					id: "fc_test1",
+					call_id: "call_abc",
+					name: "get_weather",
+					arguments: '{"city":"Paris"}',
+					status: "completed",
+				},
+				{
+					type: "mcp_approval_request",
+					id: "mcpr_test1",
+					name: "delete_file",
+					server_label: "gitmcp",
+					arguments: '{"path":"/tmp/x"}',
+				}
+			);
+			return (async function* () {
+				// no stream events needed for this test
+			})();
+		});
+
+		const req = createMockReq({
+			input: [{ role: "user", content: "Do stuff" }],
+			tools: [{ type: "function" as const, name: "get_weather", parameters: { type: "object" } }],
+		});
+		const res = createMockRes();
+		const responseObject = createMockResponseObject();
+
+		await collectEvents(innerRunStream(req, res as Parameters<typeof innerRunStream>[1], responseObject, traceContext));
+
+		// Even though messages were added (MCP auto-call), the loop should NOT iterate again
+		// because there is an unresolved function_call (no function_call_output with call_id "call_abc")
+		// and an unresolved mcp_approval_request (no mcp_approval_response with approval_request_id "mcpr_test1")
+		expect(mockHandleOneTurnStream).toHaveBeenCalledTimes(1);
+	});
+
+	it("continues loop when function_call and mcp_approval_request are already resolved in input", async () => {
+		let callCount = 0;
+		mockHandleOneTurnStream.mockImplementation((_apiKey, payload, responseObject) => {
+			callCount++;
+			if (callCount === 1) {
+				// First turn: model returns a function_call and mcp_approval_request
+				// Both are already resolved in the input, so MCP auto-call adds messages
+				payload.messages.push(
+					{
+						role: "assistant",
+						tool_calls: [{ id: "mcp_test2", type: "function", function: { name: "search", arguments: "{}" } }],
+					},
+					{ role: "tool", tool_call_id: "mcp_test2", content: "result" }
+				);
+				responseObject.output.push(
+					{
+						type: "function_call",
+						id: "fc_test2",
+						call_id: "call_already_resolved",
+						name: "get_weather",
+						arguments: '{"city":"Paris"}',
+						status: "completed",
+					},
+					{
+						type: "mcp_approval_request",
+						id: "mcpr_already_resolved",
+						name: "delete_file",
+						server_label: "gitmcp",
+						arguments: '{"path":"/tmp/x"}',
+					}
+				);
+			}
+			// Second turn: no new messages added, loop ends naturally
+			return (async function* () {})();
+		});
+
+		// Mock callApprovedMCPToolStream so the approval-processing section before the loop works
+		vi.mocked(callApprovedMCPToolStream).mockReturnValue((async function* () {})());
+
+		const req = createMockReq({
+			input: [
+				{ role: "user", content: "Do stuff" },
+				// Matching function_call_output for the function_call
+				{ type: "function_call_output" as const, call_id: "call_already_resolved", output: "sunny" },
+				// The mcp_approval_request that the response references
+				{
+					type: "mcp_approval_request" as const,
+					id: "mcpr_already_resolved",
+					server_label: "gitmcp",
+					name: "delete_file",
+					arguments: '{"path":"/tmp/x"}',
+				},
+				// Matching mcp_approval_response for the mcp_approval_request
+				{
+					type: "mcp_approval_response" as const,
+					approval_request_id: "mcpr_already_resolved",
+					approve: true,
+					reason: "ok",
+				},
+			],
+			tools: [{ type: "function" as const, name: "get_weather", parameters: { type: "object" } }],
+		});
+		const res = createMockRes();
+		const responseObject = createMockResponseObject();
+
+		await collectEvents(innerRunStream(req, res as Parameters<typeof innerRunStream>[1], responseObject, traceContext));
+
+		// Both items are resolved in input, so hasUserTask stays false and the loop continues
+		// to a second iteration (which adds no messages, ending the loop)
+		expect(mockHandleOneTurnStream).toHaveBeenCalledTimes(2);
 	});
 });
