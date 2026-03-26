@@ -14,7 +14,9 @@
 			"@modelcontextprotocol/sdk>ajv": ">=8.18.0",
 			"rollup": ">=4.59.0",
 			"serialize-javascript": ">=7.0.4 <7.0.5",
-			"flatted": ">=3.4.2"
+			"flatted": ">=3.4.2",
+			"picomatch": ">=4.0.4",
+			"yaml": ">=2.8.3"
 		}
 	},
 	"type": "module",
