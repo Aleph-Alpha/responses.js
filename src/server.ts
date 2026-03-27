@@ -9,7 +9,7 @@ export const createApp = (): Express => {
 
 	// Middleware
 	app.use(httpLogger);
-	app.use(express.json());
+	app.use(express.json({ limit: "100mb" }));
 
 	// Routes
 	app.get("/", getLandingPageHtml);
