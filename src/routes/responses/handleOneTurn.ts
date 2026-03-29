@@ -58,6 +58,7 @@ export async function* handleOneTurnStream(
 		baseURL: process.env.OPENAI_BASE_URL ?? "https://router.huggingface.co/v1",
 		apiKey: apiKey,
 		defaultHeaders,
+		maxRetries: 5,
 		fetchOptions: {
 			dispatcher: new Agent({ allowH2: true }),
 		},
