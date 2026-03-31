@@ -1,4 +1,3 @@
-import { type Response as ExpressResponse } from "express";
 import type { ValidatedRequest } from "../../middleware/validation.js";
 import type { CreateResponseParams, McpServerParams, McpApprovalRequestParams } from "../../schemas.js";
 import type { ChatCompletionTool } from "openai/resources/chat/completions.js";
@@ -16,7 +15,6 @@ import { listMcpToolsStream, callApprovedMCPToolStream } from "./mcpStream.js";
 
 export async function* innerRunStream(
 	req: ValidatedRequest<CreateResponseParams>,
-	res: ExpressResponse,
 	responseObject: IncompleteResponse,
 	traceContext: Context,
 	log: Logger = req.log
@@ -24,11 +22,7 @@ export async function* innerRunStream(
 	// Retrieve API key from headers
 	const apiKey = req.headers.authorization?.split(" ")[1];
 	if (!apiKey) {
-		res.status(401).json({
-			success: false,
-			error: "Unauthorized",
-		});
-		return;
+		throw new Error("Unauthorized: missing API key");
 	}
 
 	// Forward headers (except authorization handled separately)

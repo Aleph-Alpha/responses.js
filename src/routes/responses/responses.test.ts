@@ -27,6 +27,11 @@ vi.mock("../../lib/generateUniqueId.js", () => ({
 	generateUniqueId: vi.fn().mockImplementation((prefix) => `${prefix}_test123`),
 }));
 
+// Mock workerPool (disable worker pool in tests)
+vi.mock("../../lib/workerPool.js", () => ({
+	workerPool: null,
+}));
+
 // Mock innerRunStream
 const mockInnerRunStream = vi.fn();
 vi.mock("./innerStream.js", () => ({

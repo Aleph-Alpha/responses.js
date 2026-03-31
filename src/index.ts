@@ -10,25 +10,29 @@ disableOtelIfRequested();
 import { createServer } from "node:http";
 import { createApp } from "./server.js";
 import { logger } from "./lib/logger.js";
+import { workerPool } from "./lib/workerPool.js";
 
 const app = createApp();
 const port = process.env.PORT || 3000;
 const highWaterMark = parseInt(process.env.STREAM_HIGH_WATER_MARK || "65536", 10);
+const backlog = parseInt(process.env.TCP_BACKLOG || "5000", 10);
 
 // Start server with configurable highWaterMark for SSE streaming backpressure
-createServer({ highWaterMark }, app).listen(port, () => {
-	logger.info({ port, highWaterMark }, "Server started");
+createServer({ highWaterMark }, app).listen(port, backlog, () => {
+	logger.info({ port, highWaterMark, backlog }, "Server started");
 	logger.info({ url: `http://localhost:${port}` }, "Server is running");
 });
 
 // Graceful shutdown logging
-process.on("SIGINT", () => {
+process.on("SIGINT", async () => {
 	logger.info("Server shutting down (SIGINT)");
+	if (workerPool) await workerPool.shutdown();
 	process.exit(0);
 });
 
-process.on("SIGTERM", () => {
+process.on("SIGTERM", async () => {
 	logger.info("Server shutting down (SIGTERM)");
+	if (workerPool) await workerPool.shutdown();
 	process.exit(0);
 });
 

@@ -8,6 +8,7 @@ import type { PatchedResponseStreamEvent } from "../openai_patch";
 import { type IncompleteResponse, tracer } from "./responses/types.js";
 import { getRequestTraceContext, recordError, writeWithBackpressure } from "./responses/utils.js";
 import { innerRunStream } from "./responses/innerStream.js";
+import { workerPool } from "../lib/workerPool.js";
 
 export const postCreateResponse = async (
 	req: ValidatedRequest<CreateResponseParams>,
@@ -15,7 +16,12 @@ export const postCreateResponse = async (
 ): Promise<void> => {
 	const log = req.log;
 	// To avoid duplicated code, we run all requests as stream.
-	const events = runCreateResponseStream(req, res);
+	const events: AsyncGenerator<PatchedResponseStreamEvent> = workerPool
+		? (workerPool.execute({
+				body: req.body as Record<string, unknown>,
+				headers: req.headers as Record<string, string | string[] | undefined>,
+			}) as AsyncGenerator<PatchedResponseStreamEvent>)
+		: runCreateResponseStream(req);
 
 	// Then we return in the correct format depending on the user 'stream' flag.
 	if (req.body.stream) {
@@ -45,9 +51,8 @@ export const postCreateResponse = async (
  * Handles response lifecycle + execute inner logic (MCP list tools, MCP tool calls, LLM call, etc.).
  * Handles sequenceNumber by overwriting it in the events.
  */
-async function* runCreateResponseStream(
-	req: ValidatedRequest<CreateResponseParams>,
-	res: ExpressResponse
+export async function* runCreateResponseStream(
+	req: ValidatedRequest<CreateResponseParams>
 ): AsyncGenerator<PatchedResponseStreamEvent> {
 	const requestContext = getRequestTraceContext(req);
 	const requestSpan = tracer.startSpan(
@@ -112,7 +117,7 @@ async function* runCreateResponseStream(
 	try {
 		// Any events (LLM call, MCP call, list tools, etc.)
 		try {
-			for await (const event of innerRunStream(req, res, responseObject, traceContext)) {
+			for await (const event of innerRunStream(req, responseObject, traceContext)) {
 				yield { ...event, sequence_number: sequenceNumber++ };
 			}
 		} catch (error) {
