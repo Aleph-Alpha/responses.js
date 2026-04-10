@@ -19,7 +19,8 @@
 			"yaml": ">=2.8.3",
 			"brace-expansion": ">=5.0.5",
 			"path-to-regexp": ">=8.4.0",
-			"express>path-to-regexp": "0.1.13"
+			"express>path-to-regexp": "0.1.13",
+			"vite": ">=7.3.2"
 		}
 	},
 	"type": "module",
