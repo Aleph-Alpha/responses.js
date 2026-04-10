@@ -319,6 +319,10 @@ export async function* handleOneTurnStream(
 	} catch (error) {
 		if (error instanceof OpenAI.APIError) {
 			modelCallStatusCode = error.status ?? 500;
+			const detail = error.error?.message ?? (error.status ? null : error.message);
+			error.message = detail
+				? `Inference backend error (HTTP ${error.status ?? "unknown"}): ${detail}`
+				: `Inference backend returned HTTP ${error.status ?? "unknown"} with no details`;
 		} else {
 			modelCallStatusCode = 500;
 		}
