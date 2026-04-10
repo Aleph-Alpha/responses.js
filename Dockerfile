@@ -16,6 +16,7 @@ COPY --chown=node tsconfig.json ./
 COPY --chown=node src ./src
 RUN pnpm install --frozen-lockfile
 RUN pnpm run build
+RUN pnpm prune --prod
 RUN chown -R node:node $HOME/app
 
 # ---- Production Stage ----
