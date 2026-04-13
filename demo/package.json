@@ -41,7 +41,7 @@
 	},
 	"overrides": {
 		"form-data": ">=4.0.4",
-		"lodash": ">=4.17.23",
+		"lodash": ">=4.18.1",
 		"prismjs": ">=1.30.0",
 		"mdast-util-to-hast": ">=13.2.1"
 	},
