@@ -48,6 +48,9 @@ export async function callMcpTool(
 		log.info({ tool_name: toolName }, "Calling MCP tool");
 		const toolResponse = await client.callTool({ name: toolName, arguments: toolArgs });
 		const formattedResult = McpResultFormatter.format(toolResponse);
+		if (toolResponse.isError) {
+			throw new Error(`MCP tool call failed with error: ${formattedResult}`);
+		}
 		return {
 			output: formattedResult,
 		};
