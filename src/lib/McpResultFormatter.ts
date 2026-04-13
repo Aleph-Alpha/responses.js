@@ -8,7 +8,7 @@ import type {
 	TextResourceContents,
 	BlobResourceContents,
 	CompatibilityCallToolResult,
-} from "@modelcontextprotocol/sdk/types";
+} from "@modelcontextprotocol/sdk/types.js";
 
 /**
  * A utility class for formatting CallToolResult contents into human-readable text.

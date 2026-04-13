@@ -1,6 +1,4 @@
 import express, { type Express } from "express";
-import { createResponseParamsSchema } from "./schemas.js";
-import { validateBody } from "./middleware/validation.js";
 import { httpLogger } from "./lib/logger.js";
 import { getLandingPageHtml, postCreateResponse, getHealth } from "./routes/index.js";
 
@@ -9,14 +7,15 @@ export const createApp = (): Express => {
 
 	// Middleware
 	app.use(httpLogger);
-	app.use(express.json({ limit: "100mb" }));
 
 	// Routes
 	app.get("/", getLandingPageHtml);
 
 	app.get("/health", getHealth);
 
-	app.post("/v1/responses", validateBody(createResponseParamsSchema), postCreateResponse);
+	// No body parser — the request body is streamed to the worker thread in chunks
+	// to avoid buffering large payloads on the main event loop.
+	app.post("/v1/responses", postCreateResponse);
 
 	return app;
 };

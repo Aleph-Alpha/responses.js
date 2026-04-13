@@ -3,14 +3,16 @@ import path from "node:path";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import os from "node:os";
+import type { Readable } from "node:stream";
 import { logger } from "./logger.js";
 
 export interface WorkerTaskData {
-	body: Record<string, unknown>;
+	bodyStream: Readable;
 	headers: Record<string, string | string[] | undefined>;
 }
 
 export type WorkerOutMessage =
+	| { type: "meta"; data: Record<string, unknown> }
 	| { type: "event"; data: Record<string, unknown> }
 	| { type: "error"; message: string }
 	| { type: "done" };
@@ -84,13 +86,23 @@ export class WorkerPool {
 		this.drainQueue();
 	}
 
-	private acquireWorker(): Promise<Worker> {
+	private acquireWorker(timeoutMs = 30_000): Promise<Worker> {
 		const worker = this.available.pop();
 		if (worker) {
 			return Promise.resolve(worker);
 		}
-		return new Promise<Worker>((resolve) => {
-			this.taskQueue.push(resolve);
+		return new Promise<Worker>((resolve, reject) => {
+			const timer = setTimeout(() => {
+				const idx = this.taskQueue.indexOf(entry);
+				if (idx !== -1) this.taskQueue.splice(idx, 1);
+				logger.error({ timeoutMs, queueLength: this.taskQueue.length }, "Worker pool exhausted, rejecting request");
+				reject(new HttpError(503, { error: { message: "Worker pool exhausted", type: "server_error" } }));
+			}, timeoutMs);
+			const entry = (w: Worker) => {
+				clearTimeout(timer);
+				resolve(w);
+			};
+			this.taskQueue.push(entry);
 		});
 	}
 
@@ -116,7 +128,17 @@ export class WorkerPool {
 		const { port1, port2 } = new MessageChannel();
 
 		try {
-			worker.postMessage({ type: "task", data: taskData, port: port2 }, [port2]);
+			worker.postMessage({ type: "task", data: { headers: taskData.headers }, port: port2 }, [port2]);
+
+			// Stream body chunks to worker — each chunk is zero-copy transferred
+			// so the main thread never holds the full body in memory.
+			for await (const chunk of taskData.bodyStream) {
+				const buf: Buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+				const ab = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer;
+				port1.postMessage({ type: "chunk", data: ab }, [ab]);
+			}
+			port1.postMessage({ type: "end" });
+
 			yield* this.readMessages(port1);
 		} finally {
 			port1.close();
@@ -155,9 +177,9 @@ export class WorkerPool {
 		try {
 			while (true) {
 				const msg = await pull();
-				if (msg === null || msg.type === "done") return;
+			if (msg === null || msg.type === "done") return;
 				if (msg.type === "error") throw new Error(msg.message);
-				if (msg.type === "event") yield msg.data;
+				if (msg.type === "event" || msg.type === "meta") yield msg.data;
 			}
 		} finally {
 			port.removeListener("message", onMessage);
@@ -174,5 +196,5 @@ export class WorkerPool {
 	}
 }
 
-const poolSize = parseInt(process.env.WORKER_POOL_SIZE || "0", 10);
+const poolSize = parseInt(process.env.WORKER_POOL_SIZE || String(os.cpus().length), 10);
 export const workerPool: WorkerPool | null = poolSize > 0 ? new WorkerPool(poolSize) : null;

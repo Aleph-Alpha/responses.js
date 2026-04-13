@@ -72,6 +72,31 @@ export function createMockReq(body: Partial<CreateResponseParams> = {}): Validat
 	} as unknown as ValidatedRequest<CreateResponseParams>;
 }
 
+/**
+ * Creates a mock request with a raw Buffer body, as produced by express.raw().
+ * Use this for testing postCreateResponse (which expects unparsed body).
+ */
+export function createMockRawReq(body: Partial<CreateResponseParams> = {}): ValidatedRequest<CreateResponseParams> {
+	const defaultBody: CreateResponseParams = {
+		model: "test-model",
+		input: "Hello",
+		instructions: null,
+		max_output_tokens: null,
+		metadata: null,
+		stream: false,
+		temperature: 1,
+		top_p: 1,
+		...body,
+	};
+	return {
+		body: Buffer.from(JSON.stringify(defaultBody)),
+		headers: {
+			authorization: "Bearer test-api-key",
+		},
+		log: createMockLogger(),
+	} as unknown as ValidatedRequest<CreateResponseParams>;
+}
+
 export function createMockResponseObject(overrides: Partial<IncompleteResponse> = {}): IncompleteResponse {
 	return {
 		created_at: 1234567890,

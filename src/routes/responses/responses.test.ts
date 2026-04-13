@@ -39,7 +39,7 @@ vi.mock("./innerStream.js", () => ({
 }));
 
 import { postCreateResponse } from "../responses.js";
-import { createMockReq, createMockRes } from "./__test_helpers__/mocks.js";
+import { createMockRawReq, createMockRes } from "./__test_helpers__/mocks.js";
 
 describe("postCreateResponse", () => {
 	beforeEach(() => {
@@ -53,10 +53,10 @@ describe("postCreateResponse", () => {
 			})()
 		);
 
-		const req = createMockReq({ stream: true });
+		const req = createMockRawReq({ stream: true });
 		const res = createMockRes();
 
-		await postCreateResponse(req, res as Parameters<typeof postCreateResponse>[1]);
+		await postCreateResponse(req as any, res as Parameters<typeof postCreateResponse>[1]);
 
 		expect(res.setHeader).toHaveBeenCalledWith("Content-Type", "text/event-stream");
 		expect(res.setHeader).toHaveBeenCalledWith("Connection", "keep-alive");
@@ -71,10 +71,10 @@ describe("postCreateResponse", () => {
 			})()
 		);
 
-		const req = createMockReq({ stream: true });
+		const req = createMockRawReq({ stream: true });
 		const res = createMockRes();
 
-		await postCreateResponse(req, res as Parameters<typeof postCreateResponse>[1]);
+		await postCreateResponse(req as any, res as Parameters<typeof postCreateResponse>[1]);
 
 		// Should have written response.created, response.in_progress, response.completed
 		expect(res.write).toHaveBeenCalled();
@@ -91,10 +91,10 @@ describe("postCreateResponse", () => {
 			})()
 		);
 
-		const req = createMockReq({ stream: true });
+		const req = createMockRawReq({ stream: true });
 		const res = createMockRes();
 
-		await postCreateResponse(req, res as Parameters<typeof postCreateResponse>[1]);
+		await postCreateResponse(req as any, res as Parameters<typeof postCreateResponse>[1]);
 
 		const writeCalls = (res.write as ReturnType<typeof vi.fn>).mock.calls.map((c: string[]) =>
 			JSON.parse(c[0].replace("data: ", "").trim())
@@ -112,10 +112,10 @@ describe("postCreateResponse", () => {
 			})()
 		);
 
-		const req = createMockReq({ stream: false });
+		const req = createMockRawReq({ stream: false });
 		const res = createMockRes();
 
-		await postCreateResponse(req, res as Parameters<typeof postCreateResponse>[1]);
+		await postCreateResponse(req as any, res as Parameters<typeof postCreateResponse>[1]);
 
 		expect(res.json).toHaveBeenCalled();
 		const jsonCall = (res.json as ReturnType<typeof vi.fn>).mock.calls[0][0];
@@ -131,10 +131,10 @@ describe("postCreateResponse", () => {
 			})()
 		);
 
-		const req = createMockReq({ stream: false });
+		const req = createMockRawReq({ stream: false });
 		const res = createMockRes();
 
-		await postCreateResponse(req, res as Parameters<typeof postCreateResponse>[1]);
+		await postCreateResponse(req as any, res as Parameters<typeof postCreateResponse>[1]);
 
 		expect(res.json).toHaveBeenCalled();
 		const jsonCall = (res.json as ReturnType<typeof vi.fn>).mock.calls[0][0];
@@ -153,10 +153,10 @@ describe("postCreateResponse", () => {
 			})()
 		);
 
-		const req = createMockReq({ stream: false });
+		const req = createMockRawReq({ stream: false });
 		const res = createMockRes();
 
-		await postCreateResponse(req, res as Parameters<typeof postCreateResponse>[1]);
+		await postCreateResponse(req as any, res as Parameters<typeof postCreateResponse>[1]);
 
 		const jsonCall = (res.json as ReturnType<typeof vi.fn>).mock.calls[0][0];
 		expect(jsonCall.error.message).toBe("An error occurred in stream");
