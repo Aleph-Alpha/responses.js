@@ -23,7 +23,8 @@ export async function* closeLastOutputItem(
 	payload: ChatCompletionCreateParamsStreaming,
 	mcpToolsMapping: Map<string, McpServerParams>,
 	traceContext: Context,
-	log: Logger
+	log: Logger,
+	alreadyCalledMcpIds: Set<string> = new Set()
 ): AsyncGenerator<PatchedResponseStreamEvent> {
 	const lastOutputItem = responseObject.output.at(-1);
 	if (lastOutputItem) {
@@ -123,6 +124,10 @@ export async function* closeLastOutputItem(
 			};
 			functionCallSpan.end();
 		} else if (lastOutputItem?.type === "mcp_call") {
+			if (alreadyCalledMcpIds.has(lastOutputItem.id)) {
+				// Already executed in a previous turn, skip
+				return;
+			}
 			yield {
 				type: "response.mcp_call_arguments.done",
 				item_id: lastOutputItem.id as string,

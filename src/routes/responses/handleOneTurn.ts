@@ -35,6 +35,11 @@ export async function* handleOneTurnStream(
 	traceContext: Context,
 	log: Logger
 ): AsyncGenerator<PatchedResponseStreamEvent> {
+	// Collect IDs of mcp_call items already executed in previous turns
+	const alreadyCalledMcpIds = new Set(
+		responseObject.output.filter((item) => item.type === "mcp_call").map((item) => item.id)
+	);
+
 	const llmSpan = tracer.startSpan(
 		"gen_ai.chat",
 		{
@@ -96,7 +101,8 @@ export async function* handleOneTurnStream(
 							payload,
 							mcpToolsMapping,
 							traceContext,
-							log
+							log,
+							alreadyCalledMcpIds
 						)) {
 							yield event;
 						}
@@ -109,7 +115,8 @@ export async function* handleOneTurnStream(
 							payload,
 							mcpToolsMapping,
 							traceContext,
-							log
+							log,
+							alreadyCalledMcpIds
 						)) {
 							yield event;
 						}
@@ -280,7 +287,7 @@ export async function* handleOneTurnStream(
 						item: newOutputObject,
 						sequence_number: SEQUENCE_NUMBER_PLACEHOLDER,
 					};
-					if (newOutputObject.type === "mcp_call") {
+					if (newOutputObject.type === "mcp_call" && !alreadyCalledMcpIds.has(newOutputObject.id)) {
 						yield {
 							type: "response.mcp_call.in_progress",
 							sequence_number: SEQUENCE_NUMBER_PLACEHOLDER,
@@ -297,7 +304,10 @@ export async function* handleOneTurnStream(
 						| ResponseFunctionToolCall
 						| ResponseOutputItem.McpApprovalRequest;
 					currentOutputItem.arguments += delta.tool_calls[0].function.arguments;
-					if (currentOutputItem.type === "mcp_call" || currentOutputItem.type === "function_call") {
+					if (
+						(currentOutputItem.type === "mcp_call" && !alreadyCalledMcpIds.has(currentOutputItem.id)) ||
+						currentOutputItem.type === "function_call"
+					) {
 						yield {
 							type:
 								currentOutputItem.type === "mcp_call"
@@ -313,7 +323,14 @@ export async function* handleOneTurnStream(
 			}
 		}
 
-		for await (const event of closeLastOutputItem(responseObject, payload, mcpToolsMapping, traceContext, log)) {
+		for await (const event of closeLastOutputItem(
+			responseObject,
+			payload,
+			mcpToolsMapping,
+			traceContext,
+			log,
+			alreadyCalledMcpIds
+		)) {
 			yield event;
 		}
 	} catch (error) {
