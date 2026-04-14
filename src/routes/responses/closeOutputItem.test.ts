@@ -195,6 +195,77 @@ describe("closeLastOutputItem", () => {
 		expect(types).toContain("response.output_item.done");
 	});
 
+	it("skips mcp_call entirely when ID is in alreadyCalledMcpIds", async () => {
+		const responseObject = createMockResponseObject();
+		const mcpCall: ResponseOutputItem.McpCall = {
+			type: "mcp_call",
+			id: "mcp_1",
+			name: "search",
+			server_label: "test-server",
+			arguments: '{"q":"test"}',
+		};
+		responseObject.output.push(mcpCall);
+
+		const searchParams = {
+			server_label: "test-server",
+			server_url: "http://localhost:3001",
+			type: "mcp" as const,
+			allowed_tools: null,
+			headers: null,
+			require_approval: "never" as const,
+		};
+		const mcpToolsMapping = new Map([["search", searchParams]]);
+		const alreadyCalledMcpIds = new Set(["mcp_1"]);
+
+		const payload = { ...basePayload, messages: [...basePayload.messages] };
+		const events = await collectEvents(
+			closeLastOutputItem(responseObject, payload, mcpToolsMapping, traceContext, log, alreadyCalledMcpIds)
+		);
+
+		// Should yield no events at all for an already-called MCP item
+		expect(events).toHaveLength(0);
+		// callMcpTool should not have been called
+		expect(callMcpTool).not.toHaveBeenCalled();
+		// Payload should not have been modified
+		expect(payload.messages).toHaveLength(basePayload.messages.length);
+	});
+
+	it("executes mcp_call when ID is NOT in alreadyCalledMcpIds", async () => {
+		const responseObject = createMockResponseObject();
+		const mcpCall: ResponseOutputItem.McpCall = {
+			type: "mcp_call",
+			id: "mcp_2",
+			name: "search",
+			server_label: "test-server",
+			arguments: '{"q":"test"}',
+		};
+		responseObject.output.push(mcpCall);
+
+		const searchParams = {
+			server_label: "test-server",
+			server_url: "http://localhost:3001",
+			type: "mcp" as const,
+			allowed_tools: null,
+			headers: null,
+			require_approval: "never" as const,
+		};
+		const mcpToolsMapping = new Map([["search", searchParams]]);
+		const alreadyCalledMcpIds = new Set(["mcp_1"]); // different ID
+
+		(callMcpTool as ReturnType<typeof vi.fn>).mockResolvedValue({ output: "search results" });
+
+		const payload = { ...basePayload, messages: [...basePayload.messages] };
+		const events = await collectEvents(
+			closeLastOutputItem(responseObject, payload, mcpToolsMapping, traceContext, log, alreadyCalledMcpIds)
+		);
+		const types = events.map((e) => e.type);
+
+		expect(types).toContain("response.mcp_call_arguments.done");
+		expect(types).toContain("response.mcp_call.completed");
+		expect(types).toContain("response.output_item.done");
+		expect(callMcpTool).toHaveBeenCalledWith(searchParams, "search", '{"q":"test"}', log);
+	});
+
 	it("closes mcp_approval_request output items", async () => {
 		const responseObject = createMockResponseObject();
 		const approvalReq: ResponseOutputItem.McpApprovalRequest = {

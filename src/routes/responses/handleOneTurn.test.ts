@@ -68,6 +68,7 @@ import {
 	collectEvents,
 } from "./__test_helpers__/mocks.js";
 import type { ChatCompletionCreateParamsStreaming } from "openai/resources/chat/completions.js";
+import type { ResponseOutputItem } from "openai/resources/responses/responses";
 import { trace, SpanStatusCode, type Context } from "@opentelemetry/api";
 import type { Logger } from "pino";
 
@@ -197,6 +198,54 @@ describe("handleOneTurnStream", () => {
 		expect(types).toContain("response.output_item.added");
 		expect(types).toContain("response.mcp_call.in_progress");
 		expect(types).toContain("response.mcp_call_arguments.delta");
+	});
+
+	it("skips MCP events for already-called mcp_call items from previous turns", async () => {
+		const chunks = [createToolCallChunk("mcp_tool", undefined, "call_1"), createToolCallChunk(undefined, '{"a":1}')];
+		mockCreate.mockResolvedValue(createMockStream(chunks));
+
+		const mcpToolsMapping = new Map([
+			[
+				"mcp_tool",
+				{
+					server_label: "test-server",
+					server_url: "http://localhost:3001",
+					type: "mcp" as const,
+					allowed_tools: null,
+					headers: null,
+					require_approval: "never" as const,
+				},
+			],
+		]);
+
+		// Pre-populate responseObject.output with an mcp_call that has the same ID
+		// as the one that will be generated (generateUniqueId is mocked to return "mcp_test123")
+		const responseObject = createMockResponseObject({
+			output: [
+				{
+					type: "mcp_call",
+					id: "mcp_test123",
+					name: "mcp_tool",
+					server_label: "test-server",
+					arguments: '{"a":1}',
+					output: "previous result",
+				} as ResponseOutputItem.McpCall,
+			],
+		});
+
+		const { callMcpTool } = await import("../../mcp.js");
+		(callMcpTool as ReturnType<typeof vi.fn>).mockResolvedValue({ output: "result" });
+
+		const events = await collectEvents(
+			handleOneTurnStream("key", { ...basePayload }, responseObject, mcpToolsMapping, {}, traceContext, log)
+		);
+
+		const types = events.map((e) => e.type);
+		// Should NOT emit in_progress or argument deltas for already-called MCP
+		expect(types).not.toContain("response.mcp_call.in_progress");
+		expect(types).not.toContain("response.mcp_call_arguments.delta");
+		// callMcpTool should NOT have been invoked since closeLastOutputItem skips it
+		expect(callMcpTool).not.toHaveBeenCalled();
 	});
 
 	it("handles reasoning then text switching", async () => {
