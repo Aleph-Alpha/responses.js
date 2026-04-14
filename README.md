@@ -148,7 +148,19 @@ pnpm demo:dev
 
 The demo will be available at `http://localhost:3001`.
 
-## 🐳 Running with Docker
+## Debugging with VS Code
+
+1. Start the dev server with the Node.js inspector enabled:
+
+```bash
+pnpm dev:debug
+```
+
+2. In VS Code, open the **Run and‚ Debug** panel (`Cmd+Shift+D`) and select **Attach to Process**, then press **F5**.
+
+Breakpoints set in any `.ts` file under `src/` will be hit. The `restart: true` option in the launch config means the debugger will automatically re-attach if the process restarts.
+
+## Running with Docker
 
 You can run the server in a production-ready container using Docker.
 

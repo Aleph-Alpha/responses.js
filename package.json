@@ -47,6 +47,7 @@
 		"build": "tsup src/*.ts --format cjs,esm --clean && tsc --emitDeclarationOnly --declaration",
 		"check": "tsc",
 		"dev": "tsx watch src/index.ts",
+		"dev:debug": "tsx watch --inspect src/index.ts",
 		"format": "prettier --write .",
 		"format:check": "prettier --check .",
 		"lint": "eslint --quiet --fix .",

@@ -194,33 +194,39 @@ export async function* closeLastOutputItem(
 				sequence_number: SEQUENCE_NUMBER_PLACEHOLDER,
 			};
 
-			// Updating the payload for next LLM call
-			payload.messages.push(
-				{
-					role: "assistant",
-					tool_calls: [
-						{
-							id: lastOutputItem.id,
-							type: "function",
-							function: {
-								name: lastOutputItem.name,
-								arguments: lastOutputItem.arguments,
-								// Hacky: type is not correct in inference.js. Will fix it but in the meantime we need to cast it.
-								// TODO: fix it in the inference.js package. Should be "arguments" and not "parameters".
+			// Updating the payload for next LLM call only if the tool call succeeded
+			if (!lastOutputItem.error) {
+				payload.messages.push(
+					{
+						role: "assistant",
+						tool_calls: [
+							{
+								id: lastOutputItem.id,
+								type: "function",
+								function: {
+									name: lastOutputItem.name,
+									arguments: lastOutputItem.arguments,
+									// Hacky: type is not correct in inference.js. Will fix it but in the meantime we need to cast it.
+									// TODO: fix it in the inference.js package. Should be "arguments" and not "parameters".
+								},
 							},
-						},
-					],
-				},
-				{
-					role: "tool",
-					tool_call_id: lastOutputItem.id,
-					content: lastOutputItem.output
-						? lastOutputItem.output
-						: lastOutputItem.error
-							? `Error: ${lastOutputItem.error}`
-							: "",
-				}
-			);
+						],
+					},
+					{
+						role: "tool",
+						tool_call_id: lastOutputItem.id,
+						content: lastOutputItem.output ?? "",
+					}
+				);
+			} else {
+				log.warn(
+					{
+						item_id: lastOutputItem.id,
+						error: lastOutputItem.error,
+					},
+					"Not adding MCP tool output to payload due to error"
+				);
+			}
 		} else if (lastOutputItem?.type === "mcp_approval_request" || lastOutputItem?.type === "mcp_list_tools") {
 			yield {
 				type: "response.output_item.done",
