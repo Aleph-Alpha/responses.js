@@ -24,6 +24,8 @@ export default [
 				process: "readonly",
 				fetch: "readonly",
 				performance: "readonly",
+				setTimeout: "readonly",
+				NodeJS: "readonly",
 			},
 		},
 		plugins: {

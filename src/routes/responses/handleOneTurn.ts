@@ -23,6 +23,16 @@ import { recordError, requiresApproval } from "./utils.js";
 import { closeLastOutputItem } from "./closeOutputItem.js";
 import { modelCallCounter, modelCallDuration } from "../../lib/metrics.js";
 
+// Shared undici Agent per worker process — avoids creating a new connection pool per request.
+// Configurable via UPSTREAM_MAX_CONNECTIONS (connections per origin) and UPSTREAM_KEEP_ALIVE_TIMEOUT_MS.
+const sharedDispatcher = new Agent({
+	allowH2: true,
+	connections: parseInt(process.env.UPSTREAM_MAX_CONNECTIONS || "128", 10),
+	pipelining: 1,
+	keepAliveTimeout: parseInt(process.env.UPSTREAM_KEEP_ALIVE_TIMEOUT_MS || "30000", 10),
+	connectTimeout: parseInt(process.env.UPSTREAM_CONNECT_TIMEOUT_MS || "30000", 10),
+});
+
 /*
  * Call LLM and stream the response.
  */
@@ -54,7 +64,7 @@ export async function* handleOneTurnStream(
 		apiKey: apiKey,
 		defaultHeaders,
 		fetchOptions: {
-			dispatcher: new Agent({ allowH2: true }),
+			dispatcher: sharedDispatcher,
 		},
 	});
 	const modelCallStart = performance.now();

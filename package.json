@@ -51,6 +51,7 @@
 		"prepublishOnly": "pnpm run build",
 		"prepare": "pnpm run build",
 		"start": "node dist/index.js",
+		"start:cluster": "node dist/cluster.js",
 		"example": "node examples/_run.js",
 		"demo:build": "cd demo && npm run build",
 		"demo:dev": "cd demo && npm run dev",

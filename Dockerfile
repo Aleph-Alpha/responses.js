@@ -37,4 +37,4 @@ COPY --chown=node --from=builder /home/node/app/node_modules ./node_modules
 # Use a non-root user for security
 EXPOSE 3000
 
-CMD ["node", "dist/index.js"]
+CMD ["node", "dist/cluster.js"]
