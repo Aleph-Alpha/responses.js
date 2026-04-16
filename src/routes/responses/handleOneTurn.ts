@@ -23,6 +23,26 @@ import { recordError, requiresApproval } from "./utils.js";
 import { closeLastOutputItem } from "./closeOutputItem.js";
 import { modelCallCounter, modelCallDuration } from "../../lib/metrics.js";
 
+function parseIntEnv(name: string, defaultValue: number): number {
+	const raw = process.env[name];
+	if (raw === undefined || raw === "") return defaultValue;
+	const parsed = Number(raw);
+	if (!Number.isFinite(parsed) || !Number.isInteger(parsed) || parsed < 0) {
+		throw new Error(`Invalid value for ${name}: expected a non-negative integer, got "${raw}"`);
+	}
+	return parsed;
+}
+
+// Shared undici Agent per worker process — avoids creating a new connection pool per request.
+// Configurable via UPSTREAM_MAX_CONNECTIONS (connections per origin) and UPSTREAM_KEEP_ALIVE_TIMEOUT_MS.
+const sharedDispatcher = new Agent({
+	allowH2: true,
+	connections: parseIntEnv("UPSTREAM_MAX_CONNECTIONS", 128),
+	pipelining: 1,
+	keepAliveTimeout: parseIntEnv("UPSTREAM_KEEP_ALIVE_TIMEOUT_MS", 30_000),
+	connectTimeout: parseIntEnv("UPSTREAM_CONNECT_TIMEOUT_MS", 30_000),
+});
+
 /*
  * Call LLM and stream the response.
  */
@@ -59,7 +79,7 @@ export async function* handleOneTurnStream(
 		apiKey: apiKey,
 		defaultHeaders,
 		fetchOptions: {
-			dispatcher: new Agent({ allowH2: true }),
+			dispatcher: sharedDispatcher,
 		},
 	});
 	const modelCallStart = performance.now();
