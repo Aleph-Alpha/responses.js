@@ -22,29 +22,16 @@ import { type IncompleteResponse, StreamingError, SEQUENCE_NUMBER_PLACEHOLDER, t
 import { recordError, requiresApproval } from "./utils.js";
 import { closeLastOutputItem } from "./closeOutputItem.js";
 import { modelCallCounter, modelCallDuration } from "../../lib/metrics.js";
-
-function parseIntEnv(name: string, defaultValue: number): number {
-	const raw = process.env[name];
-	if (raw === undefined || raw === "") return defaultValue;
-	const parsed = Number(raw);
-	if (!Number.isFinite(parsed) || !Number.isInteger(parsed) || parsed < 0) {
-		throw new Error(`Invalid value for ${name}: expected a non-negative integer, got "${raw}"`);
-	}
-	return parsed;
-}
+import { config } from "../../lib/config.js";
 
 // Shared undici Agent per worker process — avoids creating a new connection pool per request.
-// Configurable via UPSTREAM_MAX_CONNECTIONS (connections per origin) and UPSTREAM_KEEP_ALIVE_TIMEOUT_MS.
 const sharedDispatcher = new Agent({
 	allowH2: true,
-	connections: parseIntEnv("UPSTREAM_MAX_CONNECTIONS", 128),
+	connections: config.upstreamMaxConnections,
 	pipelining: 1,
-	keepAliveTimeout: parseIntEnv("UPSTREAM_KEEP_ALIVE_TIMEOUT_MS", 30_000),
-	connectTimeout: parseIntEnv("UPSTREAM_CONNECT_TIMEOUT_MS", 30_000),
+	keepAliveTimeout: config.upstreamKeepAliveTimeoutMs,
+	connectTimeout: config.upstreamConnectTimeoutMs,
 });
-
-// Maximum time for an LLM streaming request (default: 5 minutes)
-const LLM_REQUEST_TIMEOUT_MS = parseIntEnv("LLM_REQUEST_TIMEOUT_MS", 300_000);
 
 /*
  * Call LLM and stream the response.
@@ -78,7 +65,7 @@ export async function* handleOneTurnStream(
 	);
 
 	const client = new OpenAI({
-		baseURL: process.env.OPENAI_BASE_URL ?? "https://router.huggingface.co/v1",
+		baseURL: config.openaiBaseUrl,
 		apiKey: apiKey,
 		defaultHeaders,
 		fetchOptions: {
@@ -89,7 +76,7 @@ export async function* handleOneTurnStream(
 	let modelCallStatusCode = 200;
 	try {
 		const stream = await client.chat.completions.create(payload, {
-			signal: AbortSignal.timeout(LLM_REQUEST_TIMEOUT_MS),
+			signal: AbortSignal.timeout(config.llmRequestTimeoutMs),
 		});
 		let previousInputTokens = responseObject.usage?.input_tokens ?? 0;
 		let previousOutputTokens = responseObject.usage?.output_tokens ?? 0;

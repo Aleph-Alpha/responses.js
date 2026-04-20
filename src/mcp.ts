@@ -8,8 +8,7 @@ import type { Logger } from "pino";
 import type { McpServerParams } from "./schemas";
 import { McpResultFormatter } from "./lib/McpResultFormatter";
 import { mcpToolCallCounter, mcpToolCallDuration } from "./lib/metrics.js";
-
-const MCP_TIMEOUT_MS = parseInt(process.env.MCP_TIMEOUT_MS || "30000", 10);
+import { config } from "./lib/config.js";
 
 export async function connectMcpServer(mcpServer: McpServerParams, log: Logger): Promise<Client> {
 	const mcp = new Client({ name: "@huggingface/responses.js", version: packageVersion });
@@ -52,7 +51,10 @@ export async function callMcpTool(
 		const toolResponse = await Promise.race([
 			client.callTool({ name: toolName, arguments: toolArgs }),
 			new Promise<never>((_, reject) =>
-				setTimeout(() => reject(new Error(`MCP tool call timed out after ${MCP_TIMEOUT_MS}ms`)), MCP_TIMEOUT_MS)
+				setTimeout(
+					() => reject(new Error(`MCP tool call timed out after ${config.mcpTimeoutMs}ms`)),
+					config.mcpTimeoutMs
+				)
 			),
 		]);
 		const formattedResult = McpResultFormatter.format(toolResponse);

@@ -1,5 +1,6 @@
 import { trace } from "@opentelemetry/api";
 import type { Response } from "openai/resources/responses/responses";
+import { config } from "../../lib/config.js";
 
 export class StreamingError extends Error {
 	constructor(message: string) {
@@ -12,6 +13,4 @@ export type IncompleteResponse = Omit<Response, "incomplete_details" | "output_t
 export const SEQUENCE_NUMBER_PLACEHOLDER = -1;
 export const tracer = trace.getTracer("responses.js.routes.responses");
 
-export const OTEL_GENAI_CAPTURE_TOOL_CONTENT =
-	process.env.OTEL_GENAI_CAPTURE_TOOL_CONTENT === "1" ||
-	process.env.OTEL_GENAI_CAPTURE_TOOL_CONTENT?.toLowerCase() === "true";
+export const OTEL_GENAI_CAPTURE_TOOL_CONTENT = config.otelGenaiCaptureToolContent;

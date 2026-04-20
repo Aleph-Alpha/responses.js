@@ -1,19 +1,17 @@
 import pino from "pino";
 import pinoHttp from "pino-http";
 import { generateUniqueId } from "./generateUniqueId.js";
+import { config } from "./config.js";
 import type { IncomingMessage } from "http";
 
 const headerValue = (value: string | string[] | undefined): string | undefined =>
 	Array.isArray(value) ? value[0] : value;
 
-const LOG_LEVEL = process.env.LOG_LEVEL ?? "info";
-const LOG_PRETTY = process.env.LOG_PRETTY === "true";
-
 export const logger = pino({
-	level: LOG_LEVEL,
+	level: config.logLevel,
 	timestamp: pino.stdTimeFunctions.isoTime,
 	redact: ["req.headers.authorization", "req.headers.cookie", 'req.headers["x-api-key"]'],
-	...(LOG_PRETTY
+	...(config.logPretty
 		? {
 				transport: {
 					target: "pino-pretty",
