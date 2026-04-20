@@ -46,7 +46,7 @@ vi.mock("./mcpStream.js", () => ({
 
 import { innerRunStream } from "./innerStream.js";
 import { callApprovedMCPToolStream } from "./mcpStream.js";
-import { createMockReq, createMockRes, createMockResponseObject, collectEvents } from "./__test_helpers__/mocks.js";
+import { createMockReq, createMockResponseObject, collectEvents } from "./__test_helpers__/mocks.js";
 import type { Context } from "@opentelemetry/api";
 
 describe("innerRunStream", () => {
@@ -56,34 +56,25 @@ describe("innerRunStream", () => {
 		vi.clearAllMocks();
 	});
 
-	it("returns 401 when no authorization header", async () => {
+	it("throws when no authorization header", async () => {
 		const req = createMockReq();
 		req.headers = {}; // No authorization
-		const res = createMockRes();
 		const responseObject = createMockResponseObject();
 
-		const events = await collectEvents(
-			innerRunStream(req, res as Parameters<typeof innerRunStream>[1], responseObject, traceContext)
+		await expect(collectEvents(innerRunStream(req, responseObject, traceContext))).rejects.toThrow(
+			"Unauthorized: missing or invalid Authorization header"
 		);
-
-		expect(events).toHaveLength(0);
-		expect(res.status).toHaveBeenCalledWith(401);
-		expect(res.json).toHaveBeenCalledWith({
-			success: false,
-			error: "Unauthorized",
-		});
 	});
 
 	it("throws when unsupported reasoning summary is provided", async () => {
 		const req = createMockReq({
 			reasoning: { effort: "medium", summary: "detailed" },
 		});
-		const res = createMockRes();
 		const responseObject = createMockResponseObject();
 
-		await expect(
-			collectEvents(innerRunStream(req, res as Parameters<typeof innerRunStream>[1], responseObject, traceContext))
-		).rejects.toThrow("Not implemented: only 'auto' summary is supported");
+		await expect(collectEvents(innerRunStream(req, responseObject, traceContext))).rejects.toThrow(
+			"Not implemented: only 'auto' summary is supported"
+		);
 	});
 
 	it("calls handleOneTurnStream with correct arguments", async () => {
@@ -94,10 +85,9 @@ describe("innerRunStream", () => {
 		);
 
 		const req = createMockReq({ input: "Hello" });
-		const res = createMockRes();
 		const responseObject = createMockResponseObject();
 
-		await collectEvents(innerRunStream(req, res as Parameters<typeof innerRunStream>[1], responseObject, traceContext));
+		await collectEvents(innerRunStream(req, responseObject, traceContext));
 
 		expect(mockHandleOneTurnStream).toHaveBeenCalledTimes(1);
 		const [apiKey, payload] = mockHandleOneTurnStream.mock.calls[0];
@@ -123,10 +113,9 @@ describe("innerRunStream", () => {
 				},
 			],
 		});
-		const res = createMockRes();
 		const responseObject = createMockResponseObject();
 
-		await collectEvents(innerRunStream(req, res as Parameters<typeof innerRunStream>[1], responseObject, traceContext));
+		await collectEvents(innerRunStream(req, responseObject, traceContext));
 
 		const payload = mockHandleOneTurnStream.mock.calls[0][1];
 		expect(payload.tools).toEqual([
@@ -150,10 +139,9 @@ describe("innerRunStream", () => {
 		);
 
 		const req = createMockReq({ tools: undefined });
-		const res = createMockRes();
 		const responseObject = createMockResponseObject();
 
-		await collectEvents(innerRunStream(req, res as Parameters<typeof innerRunStream>[1], responseObject, traceContext));
+		await collectEvents(innerRunStream(req, responseObject, traceContext));
 
 		const payload = mockHandleOneTurnStream.mock.calls[0][1];
 		expect(payload.tools).toBeUndefined();
@@ -173,10 +161,9 @@ describe("innerRunStream", () => {
 		});
 
 		const req = createMockReq({ input: "Hello" });
-		const res = createMockRes();
 		const responseObject = createMockResponseObject();
 
-		await collectEvents(innerRunStream(req, res as Parameters<typeof innerRunStream>[1], responseObject, traceContext));
+		await collectEvents(innerRunStream(req, responseObject, traceContext));
 
 		// Should have called handleOneTurnStream 4 times (3 with added messages + 1 final with no new messages)
 		expect(mockHandleOneTurnStream).toHaveBeenCalledTimes(4);
@@ -196,10 +183,9 @@ describe("innerRunStream", () => {
 			"content-type": "application/json",
 			host: "localhost",
 		};
-		const res = createMockRes();
 		const responseObject = createMockResponseObject();
 
-		await collectEvents(innerRunStream(req, res as Parameters<typeof innerRunStream>[1], responseObject, traceContext));
+		await collectEvents(innerRunStream(req, responseObject, traceContext));
 
 		const defaultHeaders = mockHandleOneTurnStream.mock.calls[0][4];
 		expect(defaultHeaders["x-custom-header"]).toBe("custom-value");
@@ -254,10 +240,9 @@ describe("innerRunStream", () => {
 			input: [{ role: "user", content: "Do stuff" }],
 			tools: [{ type: "function" as const, name: "get_weather", parameters: { type: "object" } }],
 		});
-		const res = createMockRes();
 		const responseObject = createMockResponseObject();
 
-		await collectEvents(innerRunStream(req, res as Parameters<typeof innerRunStream>[1], responseObject, traceContext));
+		await collectEvents(innerRunStream(req, responseObject, traceContext));
 
 		// Even though messages were added (MCP auto-call), the loop should NOT iterate again
 		// because there is an unresolved function_call (no function_call_output with call_id "call_abc")
@@ -327,10 +312,9 @@ describe("innerRunStream", () => {
 			],
 			tools: [{ type: "function" as const, name: "get_weather", parameters: { type: "object" } }],
 		});
-		const res = createMockRes();
 		const responseObject = createMockResponseObject();
 
-		await collectEvents(innerRunStream(req, res as Parameters<typeof innerRunStream>[1], responseObject, traceContext));
+		await collectEvents(innerRunStream(req, responseObject, traceContext));
 
 		// Both items are resolved in input, so hasUserTask stays false and the loop continues
 		// to a second iteration (which adds no messages, ending the loop)

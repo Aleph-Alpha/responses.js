@@ -14,8 +14,18 @@ export const postCreateResponse = async (
 	res: ExpressResponse
 ): Promise<void> => {
 	const log = req.log;
+
+	// Abort controller to cancel upstream work when client disconnects
+	const abortController = new AbortController();
+	res.on("close", () => {
+		if (!res.writableFinished) {
+			log.info("Client disconnected, aborting request processing");
+			abortController.abort();
+		}
+	});
+
 	// To avoid duplicated code, we run all requests as stream.
-	const events = runCreateResponseStream(req, res);
+	const events = runCreateResponseStream(req, abortController.signal);
 
 	// Then we return in the correct format depending on the user 'stream' flag.
 	if (req.body.stream) {
@@ -23,17 +33,36 @@ export const postCreateResponse = async (
 		res.setHeader("Connection", "keep-alive");
 		res.setHeader("X-Accel-Buffering", "no");
 		log.debug("Processing streaming response");
-		for await (const event of events) {
-			log.debug({ event_type: event.type, seq: event.sequence_number }, "Stream event");
-			await writeWithBackpressure(res, `data: ${JSON.stringify(event)}\n\n`);
+		try {
+			for await (const event of events) {
+				if (abortController.signal.aborted) break;
+				log.debug({ event_type: event.type, seq: event.sequence_number }, "Stream event");
+				await writeWithBackpressure(res, `data: ${JSON.stringify(event)}\n\n`);
+			}
+		} catch (error) {
+			if (!abortController.signal.aborted) {
+				log.error({ err: error }, "Error writing streaming response");
+			}
+		} finally {
+			if (!res.writableEnded) {
+				res.end();
+			}
 		}
-		res.end();
 	} else {
 		log.debug("Processing non-streaming response");
-		for await (const event of events) {
-			if (event.type === "response.completed" || event.type === "response.failed") {
-				log.debug({ event_type: event.type }, "Response completed");
-				res.json(event.response);
+		let responseSent = false;
+		try {
+			for await (const event of events) {
+				if (!responseSent && (event.type === "response.completed" || event.type === "response.failed")) {
+					log.debug({ event_type: event.type }, "Response completed");
+					res.json(event.response);
+					responseSent = true;
+				}
+			}
+		} catch (error) {
+			log.error({ err: error }, "Error processing non-streaming response");
+			if (!responseSent && !res.headersSent) {
+				res.status(500).json({ error: "Internal server error" });
 			}
 		}
 	}
@@ -47,7 +76,7 @@ export const postCreateResponse = async (
  */
 async function* runCreateResponseStream(
 	req: ValidatedRequest<CreateResponseParams>,
-	res: ExpressResponse
+	signal: AbortSignal
 ): AsyncGenerator<PatchedResponseStreamEvent> {
 	const requestContext = getRequestTraceContext(req);
 	const requestSpan = tracer.startSpan(
@@ -112,7 +141,7 @@ async function* runCreateResponseStream(
 	try {
 		// Any events (LLM call, MCP call, list tools, etc.)
 		try {
-			for await (const event of innerRunStream(req, res, responseObject, traceContext)) {
+			for await (const event of innerRunStream(req, responseObject, traceContext, signal)) {
 				yield { ...event, sequence_number: sequenceNumber++ };
 			}
 		} catch (error) {

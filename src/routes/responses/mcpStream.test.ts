@@ -69,6 +69,7 @@ describe("listMcpToolsStream", () => {
 					},
 				],
 			}),
+			close: vi.fn().mockResolvedValue(undefined),
 		};
 		(connectMcpServer as ReturnType<typeof vi.fn>).mockResolvedValue(mockClient);
 

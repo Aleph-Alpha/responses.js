@@ -54,8 +54,9 @@ export async function* listMcpToolsStream(
 		sequence_number: SEQUENCE_NUMBER_PLACEHOLDER,
 	};
 
+	let mcp: Awaited<ReturnType<typeof connectMcpServer>> | undefined;
 	try {
-		const mcp = await connectMcpServer(tool, log);
+		mcp = await connectMcpServer(tool, log);
 		const mcpTools = await mcp.listTools();
 		yield {
 			type: "response.mcp_list_tools.completed",
@@ -88,6 +89,9 @@ export async function* listMcpToolsStream(
 		};
 		throw new Error(errorMessage);
 	} finally {
+		if (mcp) {
+			await mcp.close().catch((err) => log.warn({ err }, "Failed to close MCP client"));
+		}
 		span.end();
 	}
 }
@@ -190,29 +194,36 @@ export async function* callApprovedMCPToolStream(
 		sequence_number: SEQUENCE_NUMBER_PLACEHOLDER,
 	};
 
-	// Updating the payload for next LLM call
-	payload.messages.push(
-		{
-			role: "assistant",
-			tool_calls: [
-				{
-					id: outputObject.id,
-					type: "function",
-					function: {
-						name: outputObject.name,
-						arguments: outputObject.arguments,
-						// Hacky: type is not correct in inference.js. Will fix it but in the meantime we need to cast it.
-						// TODO: fix it in the inference.js package. Should be "arguments" and not "parameters".
+	// Updating the payload for next LLM call only if the tool call succeeded
+	if (!outputObject.error) {
+		payload.messages.push(
+			{
+				role: "assistant",
+				tool_calls: [
+					{
+						id: outputObject.id,
+						type: "function",
+						function: {
+							name: outputObject.name,
+							arguments: outputObject.arguments,
+							// Hacky: type is not correct in inference.js. Will fix it but in the meantime we need to cast it.
+							// TODO: fix it in the inference.js package. Should be "arguments" and not "parameters".
+						},
 					},
-				},
-			],
-		},
-		{
-			role: "tool",
-			tool_call_id: outputObject.id,
-			content: outputObject.output ? outputObject.output : outputObject.error ? `Error: ${outputObject.error}` : "",
-		}
-	);
+				],
+			},
+			{
+				role: "tool",
+				tool_call_id: outputObject.id,
+				content: outputObject.output ?? "",
+			}
+		);
+	} else {
+		log.warn(
+			{ item_id: outputObject.id, error: outputObject.error },
+			"Not adding approved MCP tool output to payload due to error"
+		);
+	}
 
 	toolSpan.end();
 }

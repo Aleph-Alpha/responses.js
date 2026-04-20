@@ -9,6 +9,8 @@ import type { McpServerParams } from "./schemas";
 import { McpResultFormatter } from "./lib/McpResultFormatter";
 import { mcpToolCallCounter, mcpToolCallDuration } from "./lib/metrics.js";
 
+const MCP_TIMEOUT_MS = parseInt(process.env.MCP_TIMEOUT_MS || "30000", 10);
+
 export async function connectMcpServer(mcpServer: McpServerParams, log: Logger): Promise<Client> {
 	const mcp = new Client({ name: "@huggingface/responses.js", version: packageVersion });
 
@@ -42,11 +44,17 @@ export async function callMcpTool(
 ): Promise<{ error: string; output?: undefined } | { error?: undefined; output: string }> {
 	const start = performance.now();
 	let statusCode = 200;
+	let client: Client | undefined;
 	try {
-		const client = await connectMcpServer(mcpServer, log);
+		client = await connectMcpServer(mcpServer, log);
 		const toolArgs: Record<string, unknown> = argumentsString === "" ? {} : JSON.parse(argumentsString);
 		log.info({ tool_name: toolName }, "Calling MCP tool");
-		const toolResponse = await client.callTool({ name: toolName, arguments: toolArgs });
+		const toolResponse = await Promise.race([
+			client.callTool({ name: toolName, arguments: toolArgs }),
+			new Promise<never>((_, reject) =>
+				setTimeout(() => reject(new Error(`MCP tool call timed out after ${MCP_TIMEOUT_MS}ms`)), MCP_TIMEOUT_MS)
+			),
+		]);
 		const formattedResult = McpResultFormatter.format(toolResponse);
 		if (toolResponse.isError) {
 			throw new Error(`MCP tool call failed with error: ${formattedResult}`);
@@ -62,6 +70,9 @@ export async function callMcpTool(
 			error: errorMessage,
 		};
 	} finally {
+		if (client) {
+			await client.close().catch((err) => log.warn({ err }, "Failed to close MCP client"));
+		}
 		const durationSeconds = (performance.now() - start) / 1000;
 		const metricAttrs = { status_code: statusCode, tool_name: toolName, server_label: mcpServer.server_label };
 		mcpToolCallCounter.add(1, metricAttrs);

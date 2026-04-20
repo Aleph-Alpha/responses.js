@@ -26,6 +26,8 @@ export default [
 				performance: "readonly",
 				setTimeout: "readonly",
 				NodeJS: "readonly",
+				AbortController: "readonly",
+				AbortSignal: "readonly",
 			},
 		},
 		plugins: {

@@ -70,6 +70,11 @@ export function requiresApproval(toolName: string, mcpToolsMapping: Map<string, 
 
 export function writeWithBackpressure(res: ExpressResponse, data: string): Promise<void> {
 	return new Promise<void>((resolve, reject) => {
+		if (res.destroyed || res.writableEnded) {
+			reject(new Error("Response stream is no longer writable"));
+			return;
+		}
+
 		const canContinue = res.write(data);
 		if (canContinue) {
 			resolve();

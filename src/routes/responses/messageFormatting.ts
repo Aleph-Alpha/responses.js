@@ -1,9 +1,11 @@
 import type { CreateResponseParams } from "../../schemas.js";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions.js";
+import type { Logger } from "pino";
 
 export function formatInputToMessages(
 	input: CreateResponseParams["input"],
-	instructions: string | null
+	instructions: string | null,
+	log?: Logger
 ): ChatCompletionMessageParam[] {
 	const messages: ChatCompletionMessageParam[] = instructions ? [{ role: "system", content: instructions }] : [];
 
@@ -54,6 +56,12 @@ export function formatInputToMessages(
 																type: "text" as const,
 																text: content.text,
 															};
+														default:
+															log?.warn(
+																{ content_type: (content as { type: string }).type },
+																"Unknown content type dropped during message formatting"
+															);
+															return undefined;
 													}
 												})
 												.filter((item) => {
