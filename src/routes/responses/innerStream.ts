@@ -1,4 +1,3 @@
-import { type Response as ExpressResponse } from "express";
 import type { ValidatedRequest } from "../../middleware/validation.js";
 import type { CreateResponseParams, McpServerParams, McpApprovalRequestParams } from "../../schemas.js";
 import type { ChatCompletionTool } from "openai/resources/chat/completions.js";
@@ -9,6 +8,7 @@ import type { Attributes, Context } from "@opentelemetry/api";
 import type { Logger } from "pino";
 import { type IncompleteResponse, tracer, OTEL_GENAI_CAPTURE_TOOL_CONTENT } from "./types.js";
 import { NOT_FORWARDED_HEADERS, buildJsonAttribute } from "./utils.js";
+import { generateUniqueId } from "../../lib/generateUniqueId.js";
 import { formatInputToMessages } from "./messageFormatting.js";
 import { buildLLMPayload } from "./payloadBuilder.js";
 import { handleOneTurnStream } from "./handleOneTurn.js";
@@ -16,19 +16,15 @@ import { listMcpToolsStream, callApprovedMCPToolStream } from "./mcpStream.js";
 
 export async function* innerRunStream(
 	req: ValidatedRequest<CreateResponseParams>,
-	res: ExpressResponse,
 	responseObject: IncompleteResponse,
 	traceContext: Context,
+	signal?: AbortSignal,
 	log: Logger = req.log
 ): AsyncGenerator<PatchedResponseStreamEvent> {
 	// Retrieve API key from headers
 	const apiKey = req.headers.authorization?.split(" ")[1];
 	if (!apiKey) {
-		res.status(401).json({
-			success: false,
-			error: "Unauthorized",
-		});
-		return;
+		throw new Error("Unauthorized: missing or invalid Authorization header");
 	}
 
 	// Forward headers (except authorization handled separately)
@@ -113,7 +109,13 @@ export async function* innerRunStream(
 						for await (const event of listMcpToolsStream(tool, responseObject, traceContext, log)) {
 							yield event;
 						}
-						mcpListTools = responseObject.output.at(-1) as ResponseOutputItem.McpListTools;
+						const lastOutput = responseObject.output.at(-1);
+						if (!lastOutput || lastOutput.type !== "mcp_list_tools") {
+							throw new Error(
+								`Expected mcp_list_tools output after listMcpToolsStream, got ${lastOutput?.type ?? "undefined"}`
+							);
+						}
+						mcpListTools = lastOutput;
 					}
 
 					// Only allowed tools are forwarded to the LLM
@@ -148,7 +150,7 @@ export async function* innerRunStream(
 	}
 
 	// Format input to Chat Completion format
-	const messages = formatInputToMessages(req.body.input, req.body.instructions);
+	const messages = formatInputToMessages(req.body.input, req.body.instructions, log);
 
 	// Prepare payload for the LLM
 	const payload = buildLLMPayload(req.body, messages, tools);
@@ -160,12 +162,20 @@ export async function* innerRunStream(
 				const approvalRequest = req.body.input.find(
 					(i) => i.type === "mcp_approval_request" && i.id === item.approval_request_id
 				) as McpApprovalRequestParams | undefined;
-				const mcpCallId = "mcp_" + item.approval_request_id.split("_")[1];
-				const mcpCall = req.body.input.find((i) => i.type === "mcp_call" && i.id === mcpCallId);
+				// Check if an mcp_call for this approval request already exists in input
+				const mcpCall = req.body.input.find(
+					(i) =>
+						i.type === "mcp_call" &&
+						approvalRequest &&
+						i.name === approvalRequest.name &&
+						i.arguments === approvalRequest.arguments &&
+						i.server_label === approvalRequest.server_label
+				);
 				if (mcpCall) {
 					// MCP call for that approval request has already been made, so we can skip it
 					continue;
 				}
+				const mcpCallId = generateUniqueId("mcp");
 
 				for await (const event of callApprovedMCPToolStream(
 					item.approval_request_id,
@@ -192,7 +202,7 @@ export async function* innerRunStream(
 	// - there is an MCP call in the output requesting approval without a corresponding approval_response in the input
 	let hasUserTask = false;
 	let currentMessageCount = payload.messages.length;
-	const MAX_ITERATIONS = 5; // hard-coded
+	const MAX_ITERATIONS = parseInt(process.env.MAX_TOOL_ITERATIONS || "5", 10);
 	let iterations = 0;
 	do {
 		previousMessageCount = currentMessageCount;
@@ -225,5 +235,10 @@ export async function* innerRunStream(
 
 		currentMessageCount = payload.messages.length;
 		iterations++;
-	} while (currentMessageCount > previousMessageCount && iterations < MAX_ITERATIONS && !hasUserTask);
+	} while (
+		currentMessageCount > previousMessageCount &&
+		iterations < MAX_ITERATIONS &&
+		!hasUserTask &&
+		!signal?.aborted
+	);
 }

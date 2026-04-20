@@ -43,6 +43,9 @@ const sharedDispatcher = new Agent({
 	connectTimeout: parseIntEnv("UPSTREAM_CONNECT_TIMEOUT_MS", 30_000),
 });
 
+// Maximum time for an LLM streaming request (default: 5 minutes)
+const LLM_REQUEST_TIMEOUT_MS = parseIntEnv("LLM_REQUEST_TIMEOUT_MS", 300_000);
+
 /*
  * Call LLM and stream the response.
  */
@@ -85,7 +88,9 @@ export async function* handleOneTurnStream(
 	const modelCallStart = performance.now();
 	let modelCallStatusCode = 200;
 	try {
-		const stream = await client.chat.completions.create(payload);
+		const stream = await client.chat.completions.create(payload, {
+			signal: AbortSignal.timeout(LLM_REQUEST_TIMEOUT_MS),
+		});
 		let previousInputTokens = responseObject.usage?.input_tokens ?? 0;
 		let previousOutputTokens = responseObject.usage?.output_tokens ?? 0;
 		let previousTotalTokens = responseObject.usage?.total_tokens ?? 0;

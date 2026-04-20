@@ -4,7 +4,10 @@ import { z } from "zod";
 import type { Request, Response } from "express";
 
 function createMockReq(body: unknown): Request {
-	return { body } as Request;
+	return {
+		body,
+		log: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+	} as unknown as Request;
 }
 
 function createMockRes(): Response {

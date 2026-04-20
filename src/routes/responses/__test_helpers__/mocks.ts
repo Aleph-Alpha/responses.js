@@ -36,7 +36,10 @@ export function createMockRes(): Partial<ExpressResponse> & Record<string, Retur
 		status: vi.fn().mockReturnThis(),
 		once: vi.fn(),
 		off: vi.fn(),
-	};
+		on: vi.fn(),
+		writableFinished: true,
+		writableEnded: false,
+	} as unknown as Partial<ExpressResponse> & Record<string, ReturnType<typeof vi.fn>>;
 }
 
 export function createMockLogger(): Record<string, ReturnType<typeof vi.fn>> {
