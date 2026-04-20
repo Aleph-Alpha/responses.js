@@ -53,6 +53,7 @@ export const postCreateResponse = async (
 		let responseSent = false;
 		try {
 			for await (const event of events) {
+				if (abortController.signal.aborted) break;
 				if (!responseSent && (event.type === "response.completed" || event.type === "response.failed")) {
 					log.debug({ event_type: event.type }, "Response completed");
 					res.json(event.response);

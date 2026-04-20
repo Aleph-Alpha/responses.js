@@ -25,6 +25,7 @@ export default [
 				fetch: "readonly",
 				performance: "readonly",
 				setTimeout: "readonly",
+				clearTimeout: "readonly",
 				NodeJS: "readonly",
 				AbortController: "readonly",
 				AbortSignal: "readonly",

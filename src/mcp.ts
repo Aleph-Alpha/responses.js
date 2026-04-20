@@ -48,15 +48,16 @@ export async function callMcpTool(
 		client = await connectMcpServer(mcpServer, log);
 		const toolArgs: Record<string, unknown> = argumentsString === "" ? {} : JSON.parse(argumentsString);
 		log.info({ tool_name: toolName }, "Calling MCP tool");
+		let timeoutId: ReturnType<typeof setTimeout> | undefined;
 		const toolResponse = await Promise.race([
 			client.callTool({ name: toolName, arguments: toolArgs }),
-			new Promise<never>((_, reject) =>
-				setTimeout(
+			new Promise<never>((_, reject) => {
+				timeoutId = setTimeout(
 					() => reject(new Error(`MCP tool call timed out after ${config.mcpTimeoutMs}ms`)),
 					config.mcpTimeoutMs
-				)
-			),
-		]);
+				);
+			}),
+		]).finally(() => clearTimeout(timeoutId));
 		const formattedResult = McpResultFormatter.format(toolResponse);
 		if (toolResponse.isError) {
 			throw new Error(`MCP tool call failed with error: ${formattedResult}`);
