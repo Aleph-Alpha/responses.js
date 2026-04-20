@@ -9,6 +9,7 @@ import type { Logger } from "pino";
 import { type IncompleteResponse, tracer, OTEL_GENAI_CAPTURE_TOOL_CONTENT } from "./types.js";
 import { NOT_FORWARDED_HEADERS, buildJsonAttribute } from "./utils.js";
 import { generateUniqueId } from "../../lib/generateUniqueId.js";
+import { config } from "../../lib/config.js";
 import { formatInputToMessages } from "./messageFormatting.js";
 import { buildLLMPayload } from "./payloadBuilder.js";
 import { handleOneTurnStream } from "./handleOneTurn.js";
@@ -202,7 +203,7 @@ export async function* innerRunStream(
 	// - there is an MCP call in the output requesting approval without a corresponding approval_response in the input
 	let hasUserTask = false;
 	let currentMessageCount = payload.messages.length;
-	const MAX_ITERATIONS = parseInt(process.env.MAX_TOOL_ITERATIONS || "5", 10);
+	const MAX_ITERATIONS = config.maxToolIterations;
 	let iterations = 0;
 	do {
 		previousMessageCount = currentMessageCount;
