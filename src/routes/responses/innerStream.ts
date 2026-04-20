@@ -8,7 +8,6 @@ import type { Attributes, Context } from "@opentelemetry/api";
 import type { Logger } from "pino";
 import { type IncompleteResponse, tracer, OTEL_GENAI_CAPTURE_TOOL_CONTENT } from "./types.js";
 import { NOT_FORWARDED_HEADERS, buildJsonAttribute } from "./utils.js";
-import { generateUniqueId } from "../../lib/generateUniqueId.js";
 import { config } from "../../lib/config.js";
 import { formatInputToMessages } from "./messageFormatting.js";
 import { buildLLMPayload } from "./payloadBuilder.js";
@@ -163,20 +162,13 @@ export async function* innerRunStream(
 				const approvalRequest = req.body.input.find(
 					(i) => i.type === "mcp_approval_request" && i.id === item.approval_request_id
 				) as McpApprovalRequestParams | undefined;
-				// Check if an mcp_call for this approval request already exists in input
-				const mcpCall = req.body.input.find(
-					(i) =>
-						i.type === "mcp_call" &&
-						approvalRequest &&
-						i.name === approvalRequest.name &&
-						i.arguments === approvalRequest.arguments &&
-						i.server_label === approvalRequest.server_label
-				);
+				// Derive the mcp_call ID from the approval request ID (mcpr_<ID> -> mcp_<ID>)
+				const mcpCallId = "mcp_" + item.approval_request_id.split("_")[1];
+				const mcpCall = req.body.input.find((i) => i.type === "mcp_call" && i.id === mcpCallId);
 				if (mcpCall) {
 					// MCP call for that approval request has already been made, so we can skip it
 					continue;
 				}
-				const mcpCallId = generateUniqueId("mcp");
 
 				for await (const event of callApprovedMCPToolStream(
 					item.approval_request_id,
@@ -215,7 +207,8 @@ export async function* innerRunStream(
 			mcpToolsMapping,
 			defaultHeaders,
 			traceContext,
-			log
+			log,
+			signal
 		)) {
 			yield event;
 		}

@@ -43,7 +43,8 @@ export async function* handleOneTurnStream(
 	mcpToolsMapping: Map<string, McpServerParams>,
 	defaultHeaders: Record<string, string>,
 	traceContext: Context,
-	log: Logger
+	log: Logger,
+	signal?: AbortSignal
 ): AsyncGenerator<PatchedResponseStreamEvent> {
 	// Collect IDs of mcp_call items already executed in previous turns
 	const alreadyCalledMcpIds = new Set(
@@ -76,7 +77,9 @@ export async function* handleOneTurnStream(
 	let modelCallStatusCode = 200;
 	try {
 		const stream = await client.chat.completions.create(payload, {
-			signal: AbortSignal.timeout(config.llmRequestTimeoutMs),
+			signal: signal
+				? AbortSignal.any([signal, AbortSignal.timeout(config.llmRequestTimeoutMs)])
+				: AbortSignal.timeout(config.llmRequestTimeoutMs),
 		});
 		let previousInputTokens = responseObject.usage?.input_tokens ?? 0;
 		let previousOutputTokens = responseObject.usage?.output_tokens ?? 0;

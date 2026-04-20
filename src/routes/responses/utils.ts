@@ -75,7 +75,13 @@ export function writeWithBackpressure(res: ExpressResponse, data: string): Promi
 			return;
 		}
 
-		const canContinue = res.write(data);
+		let canContinue: boolean;
+		try {
+			canContinue = res.write(data);
+		} catch (error) {
+			reject(error instanceof Error ? error : new Error(String(error)));
+			return;
+		}
 		if (canContinue) {
 			resolve();
 			return;
