@@ -16,6 +16,8 @@ export const NOT_FORWARDED_HEADERS = new Set([
 	"te",
 	"trailer",
 	"trailers",
+	"traceparent",
+	"tracestate",
 	"transfer-encoding",
 	"upgrade",
 ]);
