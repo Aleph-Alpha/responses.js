@@ -227,13 +227,15 @@ export async function* closeLastOutputItem(
 					"Not adding MCP tool output to payload due to error"
 				);
 			}
-		} else if (lastOutputItem?.type === "mcp_approval_request" || lastOutputItem?.type === "mcp_list_tools") {
+		} else if (lastOutputItem?.type === "mcp_approval_request") {
 			yield {
 				type: "response.output_item.done",
 				output_index: responseObject.output.length - 1,
 				item: lastOutputItem,
 				sequence_number: SEQUENCE_NUMBER_PLACEHOLDER,
 			};
+		} else if (lastOutputItem?.type === "mcp_list_tools") {
+			// Already finalized by `listMcpToolsStream`; do not re-emit done.
 		} else {
 			throw new StreamingError(
 				`Not implemented: expected message, function_call, or mcp_call, got ${(lastOutputItem as ResponseOutputItem)?.type}`

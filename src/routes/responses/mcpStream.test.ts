@@ -83,6 +83,7 @@ describe("listMcpToolsStream", () => {
 			"response.mcp_list_tools.completed",
 			"response.output_item.done",
 		]);
+		expect(types.filter((t) => t === "response.output_item.done")).toHaveLength(1);
 	});
 
 	it("yields failed event and throws on connection error", async () => {
