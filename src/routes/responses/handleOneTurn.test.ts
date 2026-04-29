@@ -267,12 +267,26 @@ describe("handleOneTurnStream", () => {
 		mockCreate.mockResolvedValue(createMockStream(chunks));
 
 		const responseObject = createMockResponseObject();
-		await collectEvents(
+		const events = await collectEvents(
 			handleOneTurnStream("key", { ...basePayload }, responseObject, new Map(), {}, traceContext, log, "auto")
 		);
 
 		const reasoningItem = responseObject.output.find((item) => item.type === "reasoning");
 		expect(reasoningItem?.summary).toEqual([{ type: "summary_text", text: "thinking..." }]);
+		expect(events.map((event) => event.type)).toEqual([
+			"response.output_item.added",
+			"response.content_part.added",
+			"response.reasoning_summary_part.added",
+			"response.reasoning_summary_text.delta",
+			"response.reasoning_text.delta",
+			"response.reasoning_summary_text.delta",
+			"response.reasoning_text.delta",
+			"response.reasoning_text.done",
+			"response.content_part.done",
+			"response.reasoning_summary_text.done",
+			"response.reasoning_summary_part.done",
+			"response.output_item.done",
+		]);
 	});
 
 	it("keeps reasoning summary empty by default", async () => {

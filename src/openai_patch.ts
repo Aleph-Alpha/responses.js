@@ -14,10 +14,52 @@ export interface ReasoningTextContent {
 	type: "reasoning_text";
 	text: string;
 }
+
+export interface ReasoningSummaryTextContent {
+	type: "summary_text";
+	text: string;
+}
+
 export type PatchedResponseReasoningItem = OpenAIResponseReasoningItem & {
 	// Raw CoT returned in reasoning item (in addition to the summary)
 	content: ReasoningTextContent[];
 };
+
+interface PatchedResponseReasoningSummaryPartAddedEvent {
+	type: "response.reasoning_summary_part.added";
+	sequence_number: number;
+	item_id: string;
+	output_index: number;
+	summary_index: number;
+	part: ReasoningSummaryTextContent;
+}
+
+interface PatchedResponseReasoningSummaryPartDoneEvent {
+	type: "response.reasoning_summary_part.done";
+	sequence_number: number;
+	item_id: string;
+	output_index: number;
+	summary_index: number;
+	part: ReasoningSummaryTextContent;
+}
+
+interface PatchedResponseReasoningSummaryTextDeltaEvent {
+	type: "response.reasoning_summary_text.delta";
+	sequence_number: number;
+	item_id: string;
+	output_index: number;
+	summary_index: number;
+	delta: string;
+}
+
+interface PatchedResponseReasoningSummaryTextDoneEvent {
+	type: "response.reasoning_summary_text.done";
+	sequence_number: number;
+	item_id: string;
+	output_index: number;
+	summary_index: number;
+	text: string;
+}
 
 interface PatchedResponseReasoningTextDeltaEvent {
 	type: "response.reasoning_text.delta";
@@ -39,6 +81,10 @@ interface PatchedResponseReasoningTextDoneEvent {
 
 export type PatchedResponseStreamEvent =
 	| OpenAIResponseStreamEvent
+	| PatchedResponseReasoningSummaryPartAddedEvent
+	| PatchedResponseReasoningSummaryPartDoneEvent
+	| PatchedResponseReasoningSummaryTextDeltaEvent
+	| PatchedResponseReasoningSummaryTextDoneEvent
 	| PatchedResponseReasoningTextDeltaEvent
 	| PatchedResponseReasoningTextDoneEvent;
 

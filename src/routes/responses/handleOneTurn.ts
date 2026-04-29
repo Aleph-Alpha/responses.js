@@ -13,6 +13,7 @@ import type {
 	PatchedDeltaWithReasoning,
 	PatchedResponseContentPart,
 	ReasoningTextContent,
+	ReasoningSummaryTextContent,
 } from "../../openai_patch";
 import type { CreateResponseParams, McpServerParams } from "../../schemas.js";
 import { generateUniqueId } from "../../lib/generateUniqueId.js";
@@ -249,13 +250,31 @@ export async function* handleOneTurnStream(
 					const contentPart = currentReasoningItem.content.at(-1) as ReasoningTextContent;
 					contentPart.text += reasoningText;
 					if (mirrorRawReasoningToSummary) {
-						if (currentReasoningItem.summary.length === 0) {
-							currentReasoningItem.summary.push({
+						let summaryPart = currentReasoningItem.summary.at(-1) as ReasoningSummaryTextContent | undefined;
+						if (!summaryPart) {
+							summaryPart = {
 								type: "summary_text",
 								text: "",
-							});
+							};
+							currentReasoningItem.summary.push(summaryPart);
+							yield {
+								type: "response.reasoning_summary_part.added",
+								item_id: currentReasoningItem.id,
+								output_index: responseObject.output.length - 1,
+								summary_index: currentReasoningItem.summary.length - 1,
+								part: summaryPart,
+								sequence_number: SEQUENCE_NUMBER_PLACEHOLDER,
+							};
 						}
-						currentReasoningItem.summary[currentReasoningItem.summary.length - 1].text += reasoningText;
+						summaryPart.text += reasoningText;
+						yield {
+							type: "response.reasoning_summary_text.delta",
+							item_id: currentReasoningItem.id,
+							output_index: responseObject.output.length - 1,
+							summary_index: currentReasoningItem.summary.length - 1,
+							delta: reasoningText as string,
+							sequence_number: SEQUENCE_NUMBER_PLACEHOLDER,
+						};
 					}
 					yield {
 						type: "response.reasoning_text.delta",
