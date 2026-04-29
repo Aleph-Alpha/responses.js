@@ -205,9 +205,18 @@ describe("createResponseParamsSchema", () => {
 	it("accepts reasoning options", () => {
 		const result = createResponseParamsSchema.parse({
 			...minimalValid,
-			reasoning: { effort: "high" },
+			reasoning: { effort: "high", summary: "raw" },
 		});
 		expect(result.reasoning?.effort).toBe("high");
+		expect(result.reasoning?.summary).toBe("raw");
+	});
+
+	it("accepts opting out of reasoning summaries", () => {
+		const result = createResponseParamsSchema.parse({
+			...minimalValid,
+			reasoning: { summary: "none" },
+		});
+		expect(result.reasoning?.summary).toBe("none");
 	});
 
 	it("rejects invalid temperature", () => {

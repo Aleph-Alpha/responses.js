@@ -33,8 +33,10 @@ export async function* innerRunStream(
 	) as Record<string, string>;
 
 	// Return early if not supported param
-	if (req.body.reasoning?.summary && req.body.reasoning?.summary !== "auto") {
-		throw new Error(`Not implemented: only 'auto' summary is supported. Got '${req.body.reasoning?.summary}'`);
+	if (req.body.reasoning?.summary && !["auto", "raw", "none"].includes(req.body.reasoning.summary)) {
+		throw new Error(
+			`Not implemented: only 'auto', 'raw', and 'none' summary are supported. Got '${req.body.reasoning.summary}'`
+		);
 	}
 
 	// Trace function tool calls provided by the client in input history
@@ -208,6 +210,7 @@ export async function* innerRunStream(
 			defaultHeaders,
 			traceContext,
 			log,
+			req.body.reasoning?.summary ?? null,
 			signal
 		)) {
 			yield event;

@@ -73,7 +73,7 @@ describe("innerRunStream", () => {
 		const responseObject = createMockResponseObject();
 
 		await expect(collectEvents(innerRunStream(req, responseObject, traceContext))).rejects.toThrow(
-			"Not implemented: only 'auto' summary is supported"
+			"Not implemented: only 'auto', 'raw', and 'none' summary are supported"
 		);
 	});
 
@@ -84,16 +84,17 @@ describe("innerRunStream", () => {
 			})()
 		);
 
-		const req = createMockReq({ input: "Hello" });
+		const req = createMockReq({ input: "Hello", reasoning: { effort: "medium", summary: "raw" } });
 		const responseObject = createMockResponseObject();
 
 		await collectEvents(innerRunStream(req, responseObject, traceContext));
 
 		expect(mockHandleOneTurnStream).toHaveBeenCalledTimes(1);
-		const [apiKey, payload] = mockHandleOneTurnStream.mock.calls[0];
+		const [apiKey, payload, , , , , , reasoningSummaryMode] = mockHandleOneTurnStream.mock.calls[0];
 		expect(apiKey).toBe("test-api-key");
 		expect(payload.model).toBe("test-model");
 		expect(payload.stream).toBe(true);
+		expect(reasoningSummaryMode).toBe("raw");
 	});
 
 	it("builds function tools correctly", async () => {

@@ -14,7 +14,7 @@ import type {
 	PatchedResponseContentPart,
 	ReasoningTextContent,
 } from "../../openai_patch";
-import type { McpServerParams } from "../../schemas.js";
+import type { CreateResponseParams, McpServerParams } from "../../schemas.js";
 import { generateUniqueId } from "../../lib/generateUniqueId.js";
 import type { Context } from "@opentelemetry/api";
 import type { Logger } from "pino";
@@ -33,6 +33,8 @@ const sharedDispatcher = new Agent({
 	connectTimeout: config.upstreamConnectTimeoutMs,
 });
 
+type ReasoningSummaryMode = NonNullable<CreateResponseParams["reasoning"]>["summary"];
+
 /*
  * Call LLM and stream the response.
  */
@@ -44,6 +46,7 @@ export async function* handleOneTurnStream(
 	defaultHeaders: Record<string, string>,
 	traceContext: Context,
 	log: Logger,
+	reasoningSummaryMode: ReasoningSummaryMode = null,
 	signal?: AbortSignal
 ): AsyncGenerator<PatchedResponseStreamEvent> {
 	// Collect IDs of mcp_call items already executed in previous turns
@@ -86,6 +89,7 @@ export async function* handleOneTurnStream(
 		let previousOutputTokens = responseObject.usage?.output_tokens ?? 0;
 		let previousTotalTokens = responseObject.usage?.total_tokens ?? 0;
 		let currentTextMode: "text" | "reasoning" = "text";
+		const mirrorRawReasoningToSummary = reasoningSummaryMode === "auto" || reasoningSummaryMode === "raw";
 
 		for await (const chunk of stream) {
 			if (chunk.usage) {
@@ -244,6 +248,15 @@ export async function* handleOneTurnStream(
 					// Add text delta
 					const contentPart = currentReasoningItem.content.at(-1) as ReasoningTextContent;
 					contentPart.text += reasoningText;
+					if (mirrorRawReasoningToSummary) {
+						if (currentReasoningItem.summary.length === 0) {
+							currentReasoningItem.summary.push({
+								type: "summary_text",
+								text: "",
+							});
+						}
+						currentReasoningItem.summary[currentReasoningItem.summary.length - 1].text += reasoningText;
+					}
 					yield {
 						type: "response.reasoning_text.delta",
 						item_id: currentReasoningItem.id,

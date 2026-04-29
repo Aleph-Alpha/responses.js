@@ -262,6 +262,32 @@ describe("handleOneTurnStream", () => {
 		expect(types).toContain("response.output_text.delta");
 	});
 
+	it("mirrors raw reasoning into summary when requested", async () => {
+		const chunks = [createReasoningChunk("thinking"), createReasoningChunk("...")];
+		mockCreate.mockResolvedValue(createMockStream(chunks));
+
+		const responseObject = createMockResponseObject();
+		await collectEvents(
+			handleOneTurnStream("key", { ...basePayload }, responseObject, new Map(), {}, traceContext, log, "auto")
+		);
+
+		const reasoningItem = responseObject.output.find((item) => item.type === "reasoning");
+		expect(reasoningItem?.summary).toEqual([{ type: "summary_text", text: "thinking..." }]);
+	});
+
+	it("keeps reasoning summary empty by default", async () => {
+		const chunks = [createReasoningChunk("thinking...")];
+		mockCreate.mockResolvedValue(createMockStream(chunks));
+
+		const responseObject = createMockResponseObject();
+		await collectEvents(
+			handleOneTurnStream("key", { ...basePayload }, responseObject, new Map(), {}, traceContext, log)
+		);
+
+		const reasoningItem = responseObject.output.find((item) => item.type === "reasoning");
+		expect(reasoningItem?.summary).toEqual([]);
+	});
+
 	it("propagates errors from the LLM stream", async () => {
 		mockCreate.mockRejectedValue(new Error("API error"));
 
