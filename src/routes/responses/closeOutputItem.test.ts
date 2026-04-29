@@ -284,4 +284,21 @@ describe("closeLastOutputItem", () => {
 
 		expect(types).toEqual(["response.output_item.done"]);
 	});
+
+	it("is a no-op when the last output item is mcp_list_tools", async () => {
+		const responseObject = createMockResponseObject();
+		const listTools: ResponseOutputItem.McpListTools = {
+			id: "mcpl_1",
+			type: "mcp_list_tools",
+			server_label: "test-server",
+			tools: [],
+		};
+		responseObject.output.push(listTools);
+
+		const events = await collectEvents(
+			closeLastOutputItem(responseObject, { ...basePayload }, new Map(), traceContext, log)
+		);
+
+		expect(events).toHaveLength(0);
+	});
 });
