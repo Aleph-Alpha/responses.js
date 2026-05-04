@@ -125,12 +125,12 @@ describe("handleOneTurnStream", () => {
 
 		const textDeltas = events
 			.filter((e) => e.type === "response.output_text.delta")
-			.map((e) => (e as Record<string, unknown>).delta);
+			.map((e) => (e as unknown as Record<string, unknown>).delta);
 		expect(textDeltas).toEqual(["Hello", " world"]);
 
 		// Final text in done event
 		const doneEvent = events.find((e) => e.type === "response.output_text.done");
-		expect((doneEvent as Record<string, unknown>).text).toBe("Hello world");
+		expect((doneEvent as unknown as Record<string, unknown>).text).toBe("Hello world");
 	});
 
 	it("handles usage chunks", async () => {
@@ -268,25 +268,35 @@ describe("handleOneTurnStream", () => {
 
 		const responseObject = createMockResponseObject();
 		const events = await collectEvents(
-			handleOneTurnStream("key", { ...basePayload }, responseObject, new Map(), {}, traceContext, log, "auto")
+			handleOneTurnStream("key", { ...basePayload }, responseObject, new Map(), {}, traceContext, log, "detailed")
 		);
 
 		const reasoningItem = responseObject.output.find((item) => item.type === "reasoning");
+		expect(reasoningItem?.content).toEqual([]);
 		expect(reasoningItem?.summary).toEqual([{ type: "summary_text", text: "thinking..." }]);
 		expect(events.map((event) => event.type)).toEqual([
 			"response.output_item.added",
-			"response.content_part.added",
 			"response.reasoning_summary_part.added",
 			"response.reasoning_summary_text.delta",
-			"response.reasoning_text.delta",
 			"response.reasoning_summary_text.delta",
-			"response.reasoning_text.delta",
-			"response.reasoning_text.done",
-			"response.content_part.done",
 			"response.reasoning_summary_text.done",
 			"response.reasoning_summary_part.done",
 			"response.output_item.done",
 		]);
+	});
+
+	it("does not duplicate detailed reasoning as raw reasoning text", async () => {
+		const chunks = [createReasoningChunk("thinking...")];
+		mockCreate.mockResolvedValue(createMockStream(chunks));
+
+		const responseObject = createMockResponseObject();
+		const events = await collectEvents(
+			handleOneTurnStream("key", { ...basePayload }, responseObject, new Map(), {}, traceContext, log, "detailed")
+		);
+		const types = events.map((event) => event.type);
+
+		expect(types).toContain("response.reasoning_summary_text.delta");
+		expect(types).not.toContain("response.reasoning_text.delta");
 	});
 
 	it("keeps reasoning summary empty by default", async () => {
@@ -300,6 +310,20 @@ describe("handleOneTurnStream", () => {
 
 		const reasoningItem = responseObject.output.find((item) => item.type === "reasoning");
 		expect(reasoningItem?.summary).toEqual([]);
+	});
+
+	it("does not mirror raw reasoning for auto summaries", async () => {
+		const chunks = [createReasoningChunk("thinking...")];
+		mockCreate.mockResolvedValue(createMockStream(chunks));
+
+		const responseObject = createMockResponseObject();
+		const events = await collectEvents(
+			handleOneTurnStream("key", { ...basePayload }, responseObject, new Map(), {}, traceContext, log, "auto")
+		);
+
+		const reasoningItem = responseObject.output.find((item) => item.type === "reasoning");
+		expect(reasoningItem?.summary).toEqual([]);
+		expect(events.map((event) => event.type)).not.toContain("response.reasoning_summary_text.delta");
 	});
 
 	it("propagates errors from the LLM stream", async () => {

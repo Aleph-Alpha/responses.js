@@ -90,7 +90,7 @@ export async function* handleOneTurnStream(
 		let previousOutputTokens = responseObject.usage?.output_tokens ?? 0;
 		let previousTotalTokens = responseObject.usage?.total_tokens ?? 0;
 		let currentTextMode: "text" | "reasoning" = "text";
-		const mirrorRawReasoningToSummary = reasoningSummaryMode === "auto" || reasoningSummaryMode === "raw";
+		const mirrorRawReasoningToSummary = reasoningSummaryMode === "detailed";
 
 		for await (const chunk of stream) {
 			if (chunk.usage) {
@@ -123,7 +123,8 @@ export async function* handleOneTurnStream(
 							mcpToolsMapping,
 							traceContext,
 							log,
-							alreadyCalledMcpIds
+							alreadyCalledMcpIds,
+							mirrorRawReasoningToSummary
 						)) {
 							yield event;
 						}
@@ -137,7 +138,8 @@ export async function* handleOneTurnStream(
 							mcpToolsMapping,
 							traceContext,
 							log,
-							alreadyCalledMcpIds
+							alreadyCalledMcpIds,
+							mirrorRawReasoningToSummary
 						)) {
 							yield event;
 						}
@@ -228,27 +230,6 @@ export async function* handleOneTurnStream(
 					};
 				} else if (currentTextMode === "reasoning") {
 					const currentReasoningItem = responseObject.output.at(-1) as PatchedResponseReasoningItem;
-					if (currentReasoningItem.content.length === 0) {
-						// Response content part added event
-						const contentPart: ReasoningTextContent = {
-							type: "reasoning_text",
-							text: "",
-						};
-						currentReasoningItem.content.push(contentPart);
-
-						yield {
-							type: "response.content_part.added",
-							item_id: currentReasoningItem.id,
-							output_index: responseObject.output.length - 1,
-							content_index: currentReasoningItem.content.length - 1,
-							part: contentPart as unknown as PatchedResponseContentPart, // TODO: adapt once openai-node is updated
-							sequence_number: SEQUENCE_NUMBER_PLACEHOLDER,
-						};
-					}
-
-					// Add text delta
-					const contentPart = currentReasoningItem.content.at(-1) as ReasoningTextContent;
-					contentPart.text += reasoningText;
 					if (mirrorRawReasoningToSummary) {
 						let summaryPart = currentReasoningItem.summary.at(-1) as ReasoningSummaryTextContent | undefined;
 						if (!summaryPart) {
@@ -275,15 +256,37 @@ export async function* handleOneTurnStream(
 							delta: reasoningText as string,
 							sequence_number: SEQUENCE_NUMBER_PLACEHOLDER,
 						};
+					} else {
+						if (currentReasoningItem.content.length === 0) {
+							// Response content part added event
+							const contentPart: ReasoningTextContent = {
+								type: "reasoning_text",
+								text: "",
+							};
+							currentReasoningItem.content.push(contentPart);
+
+							yield {
+								type: "response.content_part.added",
+								item_id: currentReasoningItem.id,
+								output_index: responseObject.output.length - 1,
+								content_index: currentReasoningItem.content.length - 1,
+								part: contentPart as unknown as PatchedResponseContentPart, // TODO: adapt once openai-node is updated
+								sequence_number: SEQUENCE_NUMBER_PLACEHOLDER,
+							};
+						}
+
+						// Add text delta
+						const contentPart = currentReasoningItem.content.at(-1) as ReasoningTextContent;
+						contentPart.text += reasoningText;
+						yield {
+							type: "response.reasoning_text.delta",
+							item_id: currentReasoningItem.id,
+							output_index: responseObject.output.length - 1,
+							content_index: currentReasoningItem.content.length - 1,
+							delta: reasoningText as string,
+							sequence_number: SEQUENCE_NUMBER_PLACEHOLDER,
+						};
 					}
-					yield {
-						type: "response.reasoning_text.delta",
-						item_id: currentReasoningItem.id,
-						output_index: responseObject.output.length - 1,
-						content_index: currentReasoningItem.content.length - 1,
-						delta: reasoningText as string,
-						sequence_number: SEQUENCE_NUMBER_PLACEHOLDER,
-					};
 				}
 			} else if (delta.tool_calls && delta.tool_calls.length > 0) {
 				if (delta.tool_calls.length > 1) {
@@ -377,7 +380,8 @@ export async function* handleOneTurnStream(
 			mcpToolsMapping,
 			traceContext,
 			log,
-			alreadyCalledMcpIds
+			alreadyCalledMcpIds,
+			mirrorRawReasoningToSummary
 		)) {
 			yield event;
 		}

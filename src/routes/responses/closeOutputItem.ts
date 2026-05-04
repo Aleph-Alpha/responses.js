@@ -25,7 +25,8 @@ export async function* closeLastOutputItem(
 	mcpToolsMapping: Map<string, McpServerParams>,
 	traceContext: Context,
 	log: Logger,
-	alreadyCalledMcpIds: Set<string> = new Set()
+	alreadyCalledMcpIds: Set<string> = new Set(),
+	emitReasoningSummaryEvents = false
 ): AsyncGenerator<PatchedResponseStreamEvent> {
 	const lastOutputItem = responseObject.output.at(-1);
 	if (lastOutputItem) {
@@ -84,24 +85,26 @@ export async function* closeLastOutputItem(
 					sequence_number: SEQUENCE_NUMBER_PLACEHOLDER,
 				};
 			}
-			for (const [summaryIndex, summaryPart] of reasoningItem.summary.entries()) {
-				const part = summaryPart as ReasoningSummaryTextContent;
-				yield {
-					type: "response.reasoning_summary_text.done",
-					item_id: lastOutputItem.id,
-					output_index: responseObject.output.length - 1,
-					summary_index: summaryIndex,
-					text: part.text,
-					sequence_number: SEQUENCE_NUMBER_PLACEHOLDER,
-				};
-				yield {
-					type: "response.reasoning_summary_part.done",
-					item_id: lastOutputItem.id,
-					output_index: responseObject.output.length - 1,
-					summary_index: summaryIndex,
-					part,
-					sequence_number: SEQUENCE_NUMBER_PLACEHOLDER,
-				};
+			if (emitReasoningSummaryEvents) {
+				for (const [summaryIndex, summaryPart] of reasoningItem.summary.entries()) {
+					const part = summaryPart as ReasoningSummaryTextContent;
+					yield {
+						type: "response.reasoning_summary_text.done",
+						item_id: lastOutputItem.id,
+						output_index: responseObject.output.length - 1,
+						summary_index: summaryIndex,
+						text: part.text,
+						sequence_number: SEQUENCE_NUMBER_PLACEHOLDER,
+					};
+					yield {
+						type: "response.reasoning_summary_part.done",
+						item_id: lastOutputItem.id,
+						output_index: responseObject.output.length - 1,
+						summary_index: summaryIndex,
+						part,
+						sequence_number: SEQUENCE_NUMBER_PLACEHOLDER,
+					};
+				}
 			}
 			// Response output item done event
 			lastOutputItem.status = "completed";

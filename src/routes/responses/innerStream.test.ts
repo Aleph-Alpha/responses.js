@@ -66,17 +66,6 @@ describe("innerRunStream", () => {
 		);
 	});
 
-	it("throws when unsupported reasoning summary is provided", async () => {
-		const req = createMockReq({
-			reasoning: { effort: "medium", summary: "detailed" },
-		});
-		const responseObject = createMockResponseObject();
-
-		await expect(collectEvents(innerRunStream(req, responseObject, traceContext))).rejects.toThrow(
-			"Not implemented: only 'auto', 'raw', and 'none' summary are supported"
-		);
-	});
-
 	it("calls handleOneTurnStream with correct arguments", async () => {
 		mockHandleOneTurnStream.mockReturnValue(
 			(async function* () {
@@ -84,7 +73,7 @@ describe("innerRunStream", () => {
 			})()
 		);
 
-		const req = createMockReq({ input: "Hello", reasoning: { effort: "medium", summary: "raw" } });
+		const req = createMockReq({ input: "Hello", reasoning: { effort: "medium", summary: "detailed" } });
 		const responseObject = createMockResponseObject();
 
 		await collectEvents(innerRunStream(req, responseObject, traceContext));
@@ -94,7 +83,7 @@ describe("innerRunStream", () => {
 		expect(apiKey).toBe("test-api-key");
 		expect(payload.model).toBe("test-model");
 		expect(payload.stream).toBe(true);
-		expect(reasoningSummaryMode).toBe("raw");
+		expect(reasoningSummaryMode).toBe("detailed");
 	});
 
 	it("builds function tools correctly", async () => {
