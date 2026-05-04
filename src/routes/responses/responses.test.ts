@@ -100,6 +100,45 @@ describe("postCreateResponse", () => {
 		}
 	});
 
+	it("rewrites inner placeholder sequence numbers so reasoning events never collide", async () => {
+		mockInnerRunStream.mockReturnValue(
+			(async function* () {
+				yield {
+					type: "response.reasoning_text.done",
+					item_id: "rs_1",
+					output_index: 0,
+					content_index: 0,
+					text: "REASONING_TEXT",
+					sequence_number: -1,
+				};
+				yield {
+					type: "response.reasoning_summary_text.done",
+					item_id: "rs_1",
+					output_index: 0,
+					summary_index: 0,
+					text: "REASONING_TEXT",
+					sequence_number: -1,
+				};
+			})()
+		);
+
+		const req = createMockReq({ stream: true });
+		const res = createMockRes();
+
+		await postCreateResponse(req, res as Parameters<typeof postCreateResponse>[1]);
+
+		const writeCalls = (res.write as ReturnType<typeof vi.fn>).mock.calls.map((c: string[]) =>
+			JSON.parse(c[0].replace("data: ", "").trim())
+		);
+		const seqNumbers = writeCalls.map((e: Record<string, number>) => e.sequence_number);
+
+		expect(seqNumbers).not.toContain(-1);
+		expect(new Set(seqNumbers).size).toBe(seqNumbers.length);
+		for (let i = 1; i < seqNumbers.length; i++) {
+			expect(seqNumbers[i]).toBe(seqNumbers[i - 1] + 1);
+		}
+	});
+
 	it("returns JSON for non-streaming requests on response.completed", async () => {
 		mockInnerRunStream.mockReturnValue(
 			(async function* () {
