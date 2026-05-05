@@ -101,6 +101,54 @@ describe("closeLastOutputItem", () => {
 		expect(reasoning.status).toBe("completed");
 	});
 
+	it("closes reasoning summary events when requested", async () => {
+		const responseObject = createMockResponseObject();
+		const reasoning: PatchedResponseReasoningItem = {
+			id: "rs_1",
+			type: "reasoning",
+			status: "in_progress",
+			content: [],
+			summary: [{ type: "summary_text", text: "thinking..." }],
+		};
+		responseObject.output.push(reasoning as unknown as ResponseOutputItem);
+
+		const events = await collectEvents(
+			closeLastOutputItem(responseObject, { ...basePayload }, new Map(), traceContext, log, new Set(), true)
+		);
+		const types = events.map((e) => e.type);
+
+		expect(types).toEqual([
+			"response.reasoning_summary_text.done",
+			"response.reasoning_summary_part.done",
+			"response.output_item.done",
+		]);
+		expect(events.find((e) => e.type === "response.reasoning_summary_text.done")).toMatchObject({
+			summary_index: 0,
+			text: "thinking...",
+		});
+		expect(reasoning.status).toBe("completed");
+	});
+
+	it("does not close reasoning summary events by default", async () => {
+		const responseObject = createMockResponseObject();
+		const reasoning: PatchedResponseReasoningItem = {
+			id: "rs_1",
+			type: "reasoning",
+			status: "in_progress",
+			content: [{ type: "reasoning_text", text: "thinking..." }],
+			summary: [{ type: "summary_text", text: "thinking..." }],
+		};
+		responseObject.output.push(reasoning as unknown as ResponseOutputItem);
+
+		const events = await collectEvents(
+			closeLastOutputItem(responseObject, { ...basePayload }, new Map(), traceContext, log)
+		);
+		const types = events.map((e) => e.type);
+
+		expect(types).toEqual(["response.reasoning_text.done", "response.content_part.done", "response.output_item.done"]);
+		expect(reasoning.status).toBe("completed");
+	});
+
 	it("closes a function_call output item", async () => {
 		const responseObject = createMockResponseObject();
 		const fc: ResponseFunctionToolCall = {

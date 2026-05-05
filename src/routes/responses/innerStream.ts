@@ -32,11 +32,6 @@ export async function* innerRunStream(
 		Object.entries(req.headers).filter(([key]) => !NOT_FORWARDED_HEADERS.has(key.toLowerCase()))
 	) as Record<string, string>;
 
-	// Return early if not supported param
-	if (req.body.reasoning?.summary && req.body.reasoning?.summary !== "auto") {
-		throw new Error(`Not implemented: only 'auto' summary is supported. Got '${req.body.reasoning?.summary}'`);
-	}
-
 	// Trace function tool calls provided by the client in input history
 	if (Array.isArray(req.body.input)) {
 		for (const item of req.body.input) {
@@ -208,6 +203,7 @@ export async function* innerRunStream(
 			defaultHeaders,
 			traceContext,
 			log,
+			req.body.reasoning?.summary ?? null,
 			signal
 		)) {
 			yield event;

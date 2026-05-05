@@ -13,8 +13,9 @@ import type {
 	PatchedDeltaWithReasoning,
 	PatchedResponseContentPart,
 	ReasoningTextContent,
+	ReasoningSummaryTextContent,
 } from "../../openai_patch";
-import type { McpServerParams } from "../../schemas.js";
+import type { CreateResponseParams, McpServerParams } from "../../schemas.js";
 import { generateUniqueId } from "../../lib/generateUniqueId.js";
 import type { Context } from "@opentelemetry/api";
 import type { Logger } from "pino";
@@ -33,6 +34,8 @@ const sharedDispatcher = new Agent({
 	connectTimeout: config.upstreamConnectTimeoutMs,
 });
 
+type ReasoningSummaryMode = NonNullable<CreateResponseParams["reasoning"]>["summary"];
+
 /*
  * Call LLM and stream the response.
  */
@@ -44,6 +47,7 @@ export async function* handleOneTurnStream(
 	defaultHeaders: Record<string, string>,
 	traceContext: Context,
 	log: Logger,
+	reasoningSummaryMode: ReasoningSummaryMode = null,
 	signal?: AbortSignal
 ): AsyncGenerator<PatchedResponseStreamEvent> {
 	// Collect IDs of mcp_call items already executed in previous turns
@@ -86,6 +90,7 @@ export async function* handleOneTurnStream(
 		let previousOutputTokens = responseObject.usage?.output_tokens ?? 0;
 		let previousTotalTokens = responseObject.usage?.total_tokens ?? 0;
 		let currentTextMode: "text" | "reasoning" = "text";
+		const mirrorRawReasoningToSummary = reasoningSummaryMode === "detailed";
 
 		for await (const chunk of stream) {
 			if (chunk.usage) {
@@ -118,7 +123,8 @@ export async function* handleOneTurnStream(
 							mcpToolsMapping,
 							traceContext,
 							log,
-							alreadyCalledMcpIds
+							alreadyCalledMcpIds,
+							mirrorRawReasoningToSummary
 						)) {
 							yield event;
 						}
@@ -132,7 +138,8 @@ export async function* handleOneTurnStream(
 							mcpToolsMapping,
 							traceContext,
 							log,
-							alreadyCalledMcpIds
+							alreadyCalledMcpIds,
+							mirrorRawReasoningToSummary
 						)) {
 							yield event;
 						}
@@ -223,35 +230,63 @@ export async function* handleOneTurnStream(
 					};
 				} else if (currentTextMode === "reasoning") {
 					const currentReasoningItem = responseObject.output.at(-1) as PatchedResponseReasoningItem;
-					if (currentReasoningItem.content.length === 0) {
-						// Response content part added event
-						const contentPart: ReasoningTextContent = {
-							type: "reasoning_text",
-							text: "",
-						};
-						currentReasoningItem.content.push(contentPart);
-
+					if (mirrorRawReasoningToSummary) {
+						let summaryPart = currentReasoningItem.summary.at(-1) as ReasoningSummaryTextContent | undefined;
+						if (!summaryPart) {
+							summaryPart = {
+								type: "summary_text",
+								text: "",
+							};
+							currentReasoningItem.summary.push(summaryPart);
+							yield {
+								type: "response.reasoning_summary_part.added",
+								item_id: currentReasoningItem.id,
+								output_index: responseObject.output.length - 1,
+								summary_index: currentReasoningItem.summary.length - 1,
+								part: summaryPart,
+								sequence_number: SEQUENCE_NUMBER_PLACEHOLDER,
+							};
+						}
+						summaryPart.text += reasoningText;
 						yield {
-							type: "response.content_part.added",
+							type: "response.reasoning_summary_text.delta",
+							item_id: currentReasoningItem.id,
+							output_index: responseObject.output.length - 1,
+							summary_index: currentReasoningItem.summary.length - 1,
+							delta: reasoningText as string,
+							sequence_number: SEQUENCE_NUMBER_PLACEHOLDER,
+						};
+					} else {
+						if (currentReasoningItem.content.length === 0) {
+							// Response content part added event
+							const contentPart: ReasoningTextContent = {
+								type: "reasoning_text",
+								text: "",
+							};
+							currentReasoningItem.content.push(contentPart);
+
+							yield {
+								type: "response.content_part.added",
+								item_id: currentReasoningItem.id,
+								output_index: responseObject.output.length - 1,
+								content_index: currentReasoningItem.content.length - 1,
+								part: contentPart as unknown as PatchedResponseContentPart, // TODO: adapt once openai-node is updated
+								sequence_number: SEQUENCE_NUMBER_PLACEHOLDER,
+							};
+						}
+
+						// Add text delta
+						const contentPart = currentReasoningItem.content.at(-1) as ReasoningTextContent;
+						contentPart.text += reasoningText;
+						yield {
+							type: "response.reasoning_text.delta",
 							item_id: currentReasoningItem.id,
 							output_index: responseObject.output.length - 1,
 							content_index: currentReasoningItem.content.length - 1,
-							part: contentPart as unknown as PatchedResponseContentPart, // TODO: adapt once openai-node is updated
+							delta: reasoningText as string,
 							sequence_number: SEQUENCE_NUMBER_PLACEHOLDER,
 						};
 					}
-
-					// Add text delta
-					const contentPart = currentReasoningItem.content.at(-1) as ReasoningTextContent;
-					contentPart.text += reasoningText;
-					yield {
-						type: "response.reasoning_text.delta",
-						item_id: currentReasoningItem.id,
-						output_index: responseObject.output.length - 1,
-						content_index: currentReasoningItem.content.length - 1,
-						delta: reasoningText as string,
-						sequence_number: SEQUENCE_NUMBER_PLACEHOLDER,
-					};
 				}
 			} else if (delta.tool_calls && delta.tool_calls.length > 0) {
 				if (delta.tool_calls.length > 1) {
@@ -345,7 +380,8 @@ export async function* handleOneTurnStream(
 			mcpToolsMapping,
 			traceContext,
 			log,
-			alreadyCalledMcpIds
+			alreadyCalledMcpIds,
+			mirrorRawReasoningToSummary
 		)) {
 			yield event;
 		}

@@ -4,6 +4,7 @@ import type {
 	PatchedResponseContentPart,
 	PatchedResponseReasoningItem,
 	PatchedResponseStreamEvent,
+	ReasoningSummaryTextContent,
 } from "../../openai_patch";
 import type { McpServerParams } from "../../schemas.js";
 import type { Attributes, Context } from "@opentelemetry/api";
@@ -24,7 +25,8 @@ export async function* closeLastOutputItem(
 	mcpToolsMapping: Map<string, McpServerParams>,
 	traceContext: Context,
 	log: Logger,
-	alreadyCalledMcpIds: Set<string> = new Set()
+	alreadyCalledMcpIds: Set<string> = new Set(),
+	emitReasoningSummaryEvents = false
 ): AsyncGenerator<PatchedResponseStreamEvent> {
 	const lastOutputItem = responseObject.output.at(-1);
 	if (lastOutputItem) {
@@ -62,13 +64,14 @@ export async function* closeLastOutputItem(
 				sequence_number: SEQUENCE_NUMBER_PLACEHOLDER,
 			};
 		} else if (lastOutputItem?.type === "reasoning") {
-			const contentPart = (lastOutputItem as PatchedResponseReasoningItem).content.at(-1);
+			const reasoningItem = lastOutputItem as PatchedResponseReasoningItem;
+			const contentPart = reasoningItem.content.at(-1);
 			if (contentPart !== undefined) {
 				yield {
 					type: "response.reasoning_text.done",
 					item_id: lastOutputItem.id,
 					output_index: responseObject.output.length - 1,
-					content_index: (lastOutputItem as PatchedResponseReasoningItem).content.length - 1,
+					content_index: reasoningItem.content.length - 1,
 					text: contentPart.text,
 					sequence_number: SEQUENCE_NUMBER_PLACEHOLDER,
 				};
@@ -77,10 +80,31 @@ export async function* closeLastOutputItem(
 					type: "response.content_part.done",
 					item_id: lastOutputItem.id,
 					output_index: responseObject.output.length - 1,
-					content_index: (lastOutputItem as PatchedResponseReasoningItem).content.length - 1,
+					content_index: reasoningItem.content.length - 1,
 					part: contentPart as unknown as PatchedResponseContentPart, // TODO: adapt once openai-node is updated
 					sequence_number: SEQUENCE_NUMBER_PLACEHOLDER,
 				};
+			}
+			if (emitReasoningSummaryEvents) {
+				for (const [summaryIndex, summaryPart] of reasoningItem.summary.entries()) {
+					const part = summaryPart as ReasoningSummaryTextContent;
+					yield {
+						type: "response.reasoning_summary_text.done",
+						item_id: lastOutputItem.id,
+						output_index: responseObject.output.length - 1,
+						summary_index: summaryIndex,
+						text: part.text,
+						sequence_number: SEQUENCE_NUMBER_PLACEHOLDER,
+					};
+					yield {
+						type: "response.reasoning_summary_part.done",
+						item_id: lastOutputItem.id,
+						output_index: responseObject.output.length - 1,
+						summary_index: summaryIndex,
+						part,
+						sequence_number: SEQUENCE_NUMBER_PLACEHOLDER,
+					};
+				}
 			}
 			// Response output item done event
 			lastOutputItem.status = "completed";
