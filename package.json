@@ -21,7 +21,8 @@
 			"path-to-regexp": ">=8.4.0",
 			"express>path-to-regexp": "0.1.13",
 			"vite": ">=7.3.2",
-			"postcss": ">=8.5.10"
+			"postcss": ">=8.5.10",
+			"ip-address": ">=10.1.1"
 		}
 	},
 	"type": "module",
