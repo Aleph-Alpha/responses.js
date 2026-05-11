@@ -13,6 +13,7 @@ import { formatInputToMessages } from "./messageFormatting.js";
 import { buildLLMPayload } from "./payloadBuilder.js";
 import { handleOneTurnStream } from "./handleOneTurn.js";
 import { listMcpToolsStream, callApprovedMCPToolStream } from "./mcpStream.js";
+import { executeMcpCall } from "./executeMcpTool.js";
 
 export async function* innerRunStream(
 	req: ValidatedRequest<CreateResponseParams>,
@@ -192,6 +193,9 @@ export async function* innerRunStream(
 	let currentMessageCount = payload.messages.length;
 	const MAX_ITERATIONS = config.maxToolIterations;
 	let iterations = 0;
+	const executedMcpIds = new Set(
+		responseObject.output.filter((item) => item.type === "mcp_call").map((item) => item.id)
+	);
 	do {
 		previousMessageCount = currentMessageCount;
 
@@ -207,6 +211,25 @@ export async function* innerRunStream(
 			signal
 		)) {
 			yield event;
+		}
+
+		// Execute MCP tool if the last output is an unexecuted mcp_call
+		const lastItem = responseObject.output.at(-1);
+		if (lastItem?.type === "mcp_call" && !executedMcpIds.has(lastItem.id)) {
+			const result = await executeMcpCall(
+				lastItem,
+				responseObject.output.length - 1,
+				mcpToolsMapping,
+				traceContext,
+				log
+			);
+			for (const event of result.events) {
+				yield event;
+			}
+			if (result.messages) {
+				payload.messages.push(...result.messages);
+			}
+			executedMcpIds.add(lastItem.id);
 		}
 
 		// Check if the model requested actions that need to be handled by the user/client:

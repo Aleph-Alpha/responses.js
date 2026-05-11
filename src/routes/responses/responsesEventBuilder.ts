@@ -1,4 +1,3 @@
-import type { ChatCompletionCreateParamsStreaming } from "openai/resources/chat/completions.js";
 import type {
 	ResponseContentPartAddedEvent,
 	ResponseOutputMessage,
@@ -18,7 +17,7 @@ import type { Context } from "@opentelemetry/api";
 import type { Logger } from "pino";
 import { type IncompleteResponse, StreamingError, SEQUENCE_NUMBER_PLACEHOLDER } from "./types.js";
 import { requiresApproval } from "./utils.js";
-import { closeLastOutputItem } from "./closeOutputItem.js";
+import { finalizeLastOutputItem } from "./finalizeOutputItem.js";
 import type { LLMOutputEvent } from "./llmEvents.js";
 
 export type ReasoningSummaryMode = NonNullable<CreateResponseParams["reasoning"]>["summary"];
@@ -31,7 +30,6 @@ export async function* buildResponsesEvents(
 	llmEvents: AsyncIterable<LLMOutputEvent>,
 	responseObject: IncompleteResponse,
 	mcpToolsMapping: Map<string, McpServerParams>,
-	payload: ChatCompletionCreateParamsStreaming,
 	traceContext: Context,
 	log: Logger,
 	alreadyCalledMcpIds: Set<string>,
@@ -63,10 +61,8 @@ export async function* buildResponsesEvents(
 
 				// Close current output item on mode switch
 				if (currentTextMode !== targetMode) {
-					for await (const closeEvent of closeLastOutputItem(
+					for await (const closeEvent of finalizeLastOutputItem(
 						responseObject,
-						payload,
-						mcpToolsMapping,
 						traceContext,
 						log,
 						alreadyCalledMcpIds,
@@ -296,10 +292,8 @@ export async function* buildResponsesEvents(
 	}
 
 	// Finalize the last output item after stream ends
-	for await (const closeEvent of closeLastOutputItem(
+	for await (const closeEvent of finalizeLastOutputItem(
 		responseObject,
-		payload,
-		mcpToolsMapping,
 		traceContext,
 		log,
 		alreadyCalledMcpIds,

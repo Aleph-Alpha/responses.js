@@ -44,6 +44,12 @@ vi.mock("./mcpStream.js", () => ({
 	callApprovedMCPToolStream: vi.fn(),
 }));
 
+// Mock executeMcpTool
+const mockExecuteMcpCall = vi.fn();
+vi.mock("./executeMcpTool.js", () => ({
+	executeMcpCall: (...args: unknown[]) => mockExecuteMcpCall(...args),
+}));
+
 import { innerRunStream } from "./innerStream.js";
 import { callApprovedMCPToolStream } from "./mcpStream.js";
 import { createMockReq, createMockResponseObject, collectEvents } from "./__test_helpers__/mocks.js";
@@ -139,15 +145,33 @@ describe("innerRunStream", () => {
 
 	it("runs LLM loop with max iterations", async () => {
 		let callCount = 0;
-		mockHandleOneTurnStream.mockImplementation((_apiKey, payload) => {
+		mockHandleOneTurnStream.mockImplementation((_apiKey, _payload, responseObject) => {
 			callCount++;
-			// Simulate adding messages each iteration (like MCP tool calls)
 			if (callCount <= 3) {
-				payload.messages.push({ role: "tool", content: "result", tool_call_id: `call_${callCount}` });
+				// Simulate model returning an MCP tool call each iteration
+				responseObject.output.push({
+					type: "mcp_call",
+					id: `mcp_iter_${callCount}`,
+					name: "search",
+					server_label: "test-server",
+					arguments: "{}",
+				});
 			}
 			return (async function* () {
 				// no events
 			})();
+		});
+
+		// Mock executeMcpCall to return messages (so the loop continues)
+		mockExecuteMcpCall.mockImplementation((mcpCallItem: Record<string, unknown>) => {
+			mcpCallItem.output = "result";
+			return {
+				events: [],
+				messages: [
+					{ role: "assistant", tool_calls: [{ id: mcpCallItem.id, type: "function", function: { name: "search", arguments: "{}" } }] },
+					{ role: "tool", tool_call_id: mcpCallItem.id, content: "result" },
+				],
+			};
 		});
 
 		const req = createMockReq({ input: "Hello" });
@@ -155,8 +179,9 @@ describe("innerRunStream", () => {
 
 		await collectEvents(innerRunStream(req, responseObject, traceContext));
 
-		// Should have called handleOneTurnStream 4 times (3 with added messages + 1 final with no new messages)
+		// Should have called handleOneTurnStream 4 times (3 with MCP + 1 final with no new messages)
 		expect(mockHandleOneTurnStream).toHaveBeenCalledTimes(4);
+		expect(mockExecuteMcpCall).toHaveBeenCalledTimes(3);
 	});
 
 	it("filters non-forwarded headers", async () => {
@@ -185,26 +210,10 @@ describe("innerRunStream", () => {
 	});
 
 	it("stops loop when output has both an unresolved function_call and mcp_approval_request", async () => {
-		mockHandleOneTurnStream.mockImplementation((_apiKey, payload, responseObject) => {
-			// Simulate the model returning both an MCP call (auto-executed, adds messages)
-			// and a function_call + mcp_approval_request that need user action
-			payload.messages.push(
-				{
-					role: "assistant",
-					tool_calls: [{ id: "mcp_test1", type: "function", function: { name: "search", arguments: "{}" } }],
-				},
-				{ role: "tool", tool_call_id: "mcp_test1", content: "search result" }
-			);
+		mockHandleOneTurnStream.mockImplementation((_apiKey, _payload, responseObject) => {
+			// Simulate the model returning a function_call, mcp_approval_request, and mcp_call
+			// The mcp_call is last so it triggers executeMcpCall, but hasUserTask stops the loop
 			responseObject.output.push(
-				{
-					type: "mcp_call",
-					id: "mcp_test1",
-					name: "search",
-					server_label: "gitmcp",
-					arguments: "{}",
-					output: "search result",
-					status: "completed",
-				},
 				{
 					type: "function_call",
 					id: "fc_test1",
@@ -219,11 +228,29 @@ describe("innerRunStream", () => {
 					name: "delete_file",
 					server_label: "gitmcp",
 					arguments: '{"path":"/tmp/x"}',
+				},
+				{
+					type: "mcp_call",
+					id: "mcp_test1",
+					name: "search",
+					server_label: "gitmcp",
+					arguments: "{}",
 				}
 			);
 			return (async function* () {
 				// no stream events needed for this test
 			})();
+		});
+
+		mockExecuteMcpCall.mockImplementation((mcpCallItem: Record<string, unknown>) => {
+			mcpCallItem.output = "search result";
+			return {
+				events: [],
+				messages: [
+					{ role: "assistant", tool_calls: [{ id: mcpCallItem.id, type: "function", function: { name: "search", arguments: "{}" } }] },
+					{ role: "tool", tool_call_id: mcpCallItem.id, content: "search result" },
+				],
+			};
 		});
 
 		const req = createMockReq({
@@ -235,25 +262,18 @@ describe("innerRunStream", () => {
 		await collectEvents(innerRunStream(req, responseObject, traceContext));
 
 		// Even though messages were added (MCP auto-call), the loop should NOT iterate again
-		// because there is an unresolved function_call (no function_call_output with call_id "call_abc")
-		// and an unresolved mcp_approval_request (no mcp_approval_response with approval_request_id "mcpr_test1")
+		// because there is an unresolved function_call and mcp_approval_request
 		expect(mockHandleOneTurnStream).toHaveBeenCalledTimes(1);
+		expect(mockExecuteMcpCall).toHaveBeenCalledTimes(1);
 	});
 
 	it("continues loop when function_call and mcp_approval_request are already resolved in input", async () => {
 		let callCount = 0;
-		mockHandleOneTurnStream.mockImplementation((_apiKey, payload, responseObject) => {
+		mockHandleOneTurnStream.mockImplementation((_apiKey, _payload, responseObject) => {
 			callCount++;
 			if (callCount === 1) {
-				// First turn: model returns a function_call and mcp_approval_request
-				// Both are already resolved in the input, so MCP auto-call adds messages
-				payload.messages.push(
-					{
-						role: "assistant",
-						tool_calls: [{ id: "mcp_test2", type: "function", function: { name: "search", arguments: "{}" } }],
-					},
-					{ role: "tool", tool_call_id: "mcp_test2", content: "result" }
-				);
+				// First turn: model returns a function_call, mcp_approval_request, and mcp_call
+				// The function_call and mcp_approval_request are already resolved in input
 				responseObject.output.push(
 					{
 						type: "function_call",
@@ -269,11 +289,29 @@ describe("innerRunStream", () => {
 						name: "delete_file",
 						server_label: "gitmcp",
 						arguments: '{"path":"/tmp/x"}',
+					},
+					{
+						type: "mcp_call",
+						id: "mcp_test2",
+						name: "search",
+						server_label: "gitmcp",
+						arguments: "{}",
 					}
 				);
 			}
-			// Second turn: no new messages added, loop ends naturally
+			// Second turn: no new output items, loop ends naturally
 			return (async function* () {})();
+		});
+
+		mockExecuteMcpCall.mockImplementation((mcpCallItem: Record<string, unknown>) => {
+			mcpCallItem.output = "result";
+			return {
+				events: [],
+				messages: [
+					{ role: "assistant", tool_calls: [{ id: mcpCallItem.id, type: "function", function: { name: "search", arguments: "{}" } }] },
+					{ role: "tool", tool_call_id: mcpCallItem.id, content: "result" },
+				],
+			};
 		});
 
 		// Mock callApprovedMCPToolStream so the approval-processing section before the loop works
@@ -309,5 +347,6 @@ describe("innerRunStream", () => {
 		// Both items are resolved in input, so hasUserTask stays false and the loop continues
 		// to a second iteration (which adds no messages, ending the loop)
 		expect(mockHandleOneTurnStream).toHaveBeenCalledTimes(2);
+		expect(mockExecuteMcpCall).toHaveBeenCalledTimes(1);
 	});
 });

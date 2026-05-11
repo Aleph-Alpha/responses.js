@@ -42,7 +42,6 @@ vi.mock("../../mcp.js", () => ({
 
 import { buildResponsesEvents } from "./responsesEventBuilder.js";
 import { createMockResponseObject, createMockLogger, collectEvents } from "./__test_helpers__/mocks.js";
-import type { ChatCompletionCreateParamsStreaming } from "openai/resources/chat/completions.js";
 import type { Context } from "@opentelemetry/api";
 import type { Logger } from "pino";
 import type { LLMOutputEvent } from "./llmEvents.js";
@@ -56,12 +55,6 @@ async function* fromArray(events: LLMOutputEvent[]): AsyncGenerator<LLMOutputEve
 describe("buildResponsesEvents", () => {
 	const traceContext = {} as Context;
 	const log = createMockLogger() as unknown as Logger;
-
-	const basePayload: ChatCompletionCreateParamsStreaming = {
-		model: "test-model",
-		messages: [{ role: "user", content: "Hello" }],
-		stream: true,
-	};
 
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -79,7 +72,6 @@ describe("buildResponsesEvents", () => {
 				fromArray(llmEvents),
 				responseObject,
 				new Map(),
-				{ ...basePayload },
 				traceContext,
 				log,
 				new Set()
@@ -107,7 +99,6 @@ describe("buildResponsesEvents", () => {
 				fromArray(llmEvents),
 				responseObject,
 				new Map(),
-				{ ...basePayload },
 				traceContext,
 				log,
 				new Set()
@@ -135,7 +126,6 @@ describe("buildResponsesEvents", () => {
 				fromArray(llmEvents),
 				responseObject,
 				new Map(),
-				{ ...basePayload },
 				traceContext,
 				log,
 				new Set()
@@ -159,7 +149,6 @@ describe("buildResponsesEvents", () => {
 				fromArray(llmEvents),
 				responseObject,
 				new Map(),
-				{ ...basePayload },
 				traceContext,
 				log,
 				new Set()
@@ -202,7 +191,6 @@ describe("buildResponsesEvents", () => {
 				fromArray(llmEvents),
 				responseObject,
 				mcpToolsMapping,
-				{ ...basePayload },
 				traceContext,
 				log,
 				new Set()
@@ -227,7 +215,6 @@ describe("buildResponsesEvents", () => {
 				fromArray(llmEvents),
 				responseObject,
 				new Map(),
-				{ ...basePayload },
 				traceContext,
 				log,
 				new Set()
@@ -251,7 +238,6 @@ describe("buildResponsesEvents", () => {
 				fromArray(llmEvents),
 				responseObject,
 				new Map(),
-				{ ...basePayload },
 				traceContext,
 				log,
 				new Set(),
@@ -282,7 +268,6 @@ describe("buildResponsesEvents", () => {
 				fromArray(llmEvents),
 				responseObject,
 				new Map(),
-				{ ...basePayload },
 				traceContext,
 				log,
 				new Set()
@@ -302,7 +287,6 @@ describe("buildResponsesEvents", () => {
 				fromArray(llmEvents),
 				responseObject,
 				new Map(),
-				{ ...basePayload },
 				traceContext,
 				log,
 				new Set(),
