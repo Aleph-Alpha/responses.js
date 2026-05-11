@@ -104,4 +104,28 @@ describe("config", () => {
 		expect(cfg.otelDisabled).toBe(false);
 		expect(cfg.logPretty).toBe(false);
 	});
+
+	it("reads BACKEND_MODE enum correctly", async () => {
+		process.env.BACKEND_MODE = "responses_api";
+
+		const cfg = await loadConfig();
+
+		expect(cfg.backendMode).toBe("responses_api");
+	});
+
+	it("defaults BACKEND_MODE to chat_completions", async () => {
+		delete process.env.BACKEND_MODE;
+
+		const cfg = await loadConfig();
+
+		expect(cfg.backendMode).toBe("chat_completions");
+	});
+
+	it("throws on invalid BACKEND_MODE value", async () => {
+		process.env.BACKEND_MODE = "invalid";
+
+		await expect(loadConfig()).rejects.toThrow(
+			'Invalid value for BACKEND_MODE: expected one of [chat_completions, responses_api], got "invalid"'
+		);
+	});
 });

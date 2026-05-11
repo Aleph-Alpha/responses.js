@@ -10,6 +10,7 @@ import { recordError } from "./utils.js";
 import { modelCallCounter, modelCallDuration } from "../../lib/metrics.js";
 import { config } from "../../lib/config.js";
 import { parseChatCompletionsStream } from "./chatCompletionsParser.js";
+import { parseResponsesApiStream } from "./responsesApiParser.js";
 import { buildResponsesEvents, type ReasoningSummaryMode } from "./responsesEventBuilder.js";
 
 // Shared undici Agent per worker process — avoids creating a new connection pool per request.
@@ -72,7 +73,10 @@ export async function* handleOneTurnStream(
 				: AbortSignal.timeout(config.llmRequestTimeoutMs),
 		});
 
-		const llmEvents = parseChatCompletionsStream(stream, log);
+		const llmEvents =
+			config.backendMode === "responses_api"
+				? parseResponsesApiStream(stream, log)
+				: parseChatCompletionsStream(stream, log);
 
 		for await (const event of buildResponsesEvents(
 			llmEvents,

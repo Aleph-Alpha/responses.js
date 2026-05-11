@@ -185,7 +185,7 @@ describe("handleOneTurnStream", () => {
 			],
 		]);
 
-		// Mock callMcpTool for the closeLastOutputItem call
+		// Mock callMcpTool for the finalizeLastOutputItem call
 		const { callMcpTool } = await import("../../mcp.js");
 		(callMcpTool as ReturnType<typeof vi.fn>).mockResolvedValue({ output: "result" });
 
@@ -244,7 +244,7 @@ describe("handleOneTurnStream", () => {
 		// Should NOT emit in_progress or argument deltas for already-called MCP
 		expect(types).not.toContain("response.mcp_call.in_progress");
 		expect(types).not.toContain("response.mcp_call_arguments.delta");
-		// callMcpTool should NOT have been invoked since closeLastOutputItem skips it
+		// callMcpTool should NOT have been invoked since finalizeLastOutputItem skips it
 		expect(callMcpTool).not.toHaveBeenCalled();
 	});
 

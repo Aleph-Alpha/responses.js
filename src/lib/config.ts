@@ -27,6 +27,15 @@ function parseStringEnv(name: string, defaultValue: string): string {
 	return process.env[name] || defaultValue;
 }
 
+function parseEnumEnv<T extends string>(name: string, allowed: readonly T[], defaultValue: T): T {
+	const raw = process.env[name];
+	if (raw === undefined || raw === "") return defaultValue;
+	if (!allowed.includes(raw as T)) {
+		throw new Error(`Invalid value for ${name}: expected one of [${allowed.join(", ")}], got "${raw}"`);
+	}
+	return raw as T;
+}
+
 export const config = {
 	// ── Server ────────────────────────────────────────────────────────────
 	/** HTTP server listening port */
@@ -41,6 +50,8 @@ export const config = {
 	shutdownTimeoutMs: parseIntEnv("SHUTDOWN_TIMEOUT_MS", 10_000),
 
 	// ── Upstream (LLM) ──────────────────────────────────────────────────
+	/** Backend mode: chat_completions (translate) or responses_api (native) */
+	backendMode: parseEnumEnv("BACKEND_MODE", ["chat_completions", "responses_api"] as const, "chat_completions"),
 	/** Base URL for the Chat Completions backend */
 	openaiBaseUrl: parseStringEnv("OPENAI_BASE_URL", "https://router.huggingface.co/v1"),
 	/** Max connections per origin in the shared HTTP agent */
