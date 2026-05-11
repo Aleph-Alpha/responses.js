@@ -24,7 +24,7 @@ import { buildJsonAttribute } from "./utils.js";
 export async function* finalizeLastOutputItem(
 	responseObject: IncompleteResponse,
 	traceContext: Context,
-	log: Logger,
+	_log: Logger,
 	alreadyCalledMcpIds: Set<string> = new Set(),
 	emitReasoningSummaryEvents = false
 ): AsyncGenerator<PatchedResponseStreamEvent> {
