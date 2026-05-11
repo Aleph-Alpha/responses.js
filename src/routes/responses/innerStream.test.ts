@@ -50,16 +50,29 @@ vi.mock("./executeMcpTool.js", () => ({
 	executeMcpCall: (...args: unknown[]) => mockExecuteMcpCall(...args),
 }));
 
+// Mock config — spread the real defaults so we only override what we need
+const mockConfig = vi.hoisted(() => ({
+	maxToolIterations: 5,
+	agenticLoopDisabled: false,
+}));
+vi.mock("../../lib/config.js", () => ({
+	config: mockConfig,
+}));
+
 import { innerRunStream } from "./innerStream.js";
 import { callApprovedMCPToolStream } from "./mcpStream.js";
 import { createMockReq, createMockResponseObject, collectEvents } from "./__test_helpers__/mocks.js";
 import type { Context } from "@opentelemetry/api";
+import type { ResponseOutputItem } from "openai/resources/responses/responses";
+import type { IncompleteResponse } from "./types.js";
 
 describe("innerRunStream", () => {
 	const traceContext = {} as Context;
 
 	beforeEach(() => {
 		vi.clearAllMocks();
+		mockConfig.agenticLoopDisabled = false;
+		mockConfig.maxToolIterations = 5;
 	});
 
 	it("throws when no authorization header", async () => {
@@ -348,5 +361,160 @@ describe("innerRunStream", () => {
 		// to a second iteration (which adds no messages, ending the loop)
 		expect(mockHandleOneTurnStream).toHaveBeenCalledTimes(2);
 		expect(mockExecuteMcpCall).toHaveBeenCalledTimes(1);
+	});
+
+	describe("agenticLoopDisabled", () => {
+		it("runs exactly one LLM turn and does not execute MCP tools", async () => {
+			mockConfig.agenticLoopDisabled = true;
+
+			mockHandleOneTurnStream.mockImplementation((_apiKey: unknown, _payload: unknown, responseObject: IncompleteResponse) => {
+				// Simulate model returning an MCP tool call
+				responseObject.output.push({
+					type: "mcp_call",
+					id: "mcp_disabled_1",
+					name: "search",
+					server_label: "test-server",
+					arguments: "{}",
+				} as ResponseOutputItem.McpCall);
+				return (async function* () {
+					// no events
+				})();
+			});
+
+			const req = createMockReq({ input: "Hello" });
+			const responseObject = createMockResponseObject();
+
+			await collectEvents(innerRunStream(req, responseObject, traceContext));
+
+			expect(mockHandleOneTurnStream).toHaveBeenCalledTimes(1);
+			expect(mockExecuteMcpCall).not.toHaveBeenCalled();
+		});
+
+		it("still lists MCP tools but does not execute them when agentic loop is disabled", async () => {
+			mockConfig.agenticLoopDisabled = true;
+
+			mockHandleOneTurnStream.mockReturnValue(
+				(async function* () {
+					// no events
+				})()
+			);
+
+			const { listMcpToolsStream } = await import("./mcpStream.js");
+			vi.mocked(listMcpToolsStream).mockImplementation(function* (tool, responseObject) {
+				responseObject.output.push({
+					type: "mcp_list_tools",
+					id: "mcpl_test",
+					server_label: tool.server_label,
+					tools: [{ name: "search", description: "Search", input_schema: { type: "object" } }],
+				} as ResponseOutputItem.McpListTools);
+				yield undefined as never; // satisfy require-yield
+			} as never);
+
+			const req = createMockReq({
+				input: "Hello",
+				tools: [
+					{
+						type: "mcp" as const,
+						server_label: "test-server",
+						server_url: "http://localhost:3001",
+						require_approval: "never" as const,
+						allowed_tools: [],
+						headers: null,
+					},
+				],
+			});
+			const responseObject = createMockResponseObject();
+
+			await collectEvents(innerRunStream(req, responseObject, traceContext));
+
+			expect(listMcpToolsStream).toHaveBeenCalled();
+			expect(mockHandleOneTurnStream).toHaveBeenCalledTimes(1);
+			// MCP tools should be in the payload
+			const payload = mockHandleOneTurnStream.mock.calls[0][1];
+			expect(payload.tools).toEqual([
+				{
+					type: "function",
+					function: {
+						name: "search",
+						parameters: { type: "object" },
+						description: "Search",
+					},
+				},
+			]);
+			expect(mockExecuteMcpCall).not.toHaveBeenCalled();
+		});
+
+		it("skips MCP approval execution when agentic loop is disabled", async () => {
+			mockConfig.agenticLoopDisabled = true;
+
+			mockHandleOneTurnStream.mockReturnValue(
+				(async function* () {
+					// no events
+				})()
+			);
+
+			const req = createMockReq({
+				input: [
+					{ role: "user", content: "Do stuff" },
+					{
+						type: "mcp_approval_request" as const,
+						id: "mcpr_test",
+						server_label: "gitmcp",
+						name: "delete_file",
+						arguments: '{"path":"/tmp/x"}',
+					},
+					{
+						type: "mcp_approval_response" as const,
+						approval_request_id: "mcpr_test",
+						approve: true,
+						reason: "ok",
+					},
+				],
+			});
+			const responseObject = createMockResponseObject();
+
+			await collectEvents(innerRunStream(req, responseObject, traceContext));
+
+			expect(callApprovedMCPToolStream).not.toHaveBeenCalled();
+			expect(mockHandleOneTurnStream).toHaveBeenCalledTimes(1);
+		});
+
+		it("still includes function tools in payload when agentic loop is disabled", async () => {
+			mockConfig.agenticLoopDisabled = true;
+
+			mockHandleOneTurnStream.mockReturnValue(
+				(async function* () {
+					// no events
+				})()
+			);
+
+			const req = createMockReq({
+				input: "Hello",
+				tools: [
+					{
+						type: "function" as const,
+						name: "get_weather",
+						parameters: { type: "object" },
+						strict: false,
+					},
+				],
+			});
+			const responseObject = createMockResponseObject();
+
+			await collectEvents(innerRunStream(req, responseObject, traceContext));
+
+			const payload = mockHandleOneTurnStream.mock.calls[0][1];
+			expect(payload.tools).toEqual([
+				{
+					type: "function",
+					function: {
+						name: "get_weather",
+						parameters: { type: "object" },
+						description: undefined,
+						strict: false,
+					},
+				},
+			]);
+		});
 	});
 });

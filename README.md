@@ -67,6 +67,22 @@ OTEL_DISABLED=true   # or "1"
 
 When set, `trace.disable()`, `metrics.disable()`, and a no-op diagnostic logger are applied at startup.
 
+### Disabling the Agentic Loop
+
+By default, `responses.js` runs an agentic loop: when the LLM returns MCP tool calls, the server automatically executes them and feeds results back to the LLM for another turn (up to `MAX_TOOL_ITERATIONS`, default 5).
+
+To disable this and use `responses.js` purely as a **translation layer** between the Responses API and Chat Completions, set:
+
+```bash
+AGENTIC_LOOP_DISABLED=true
+```
+
+When enabled:
+- The server makes exactly **one** LLM call per request and streams the response back.
+- MCP tool listing, MCP tool execution, and MCP approval handling are all skipped.
+- **Function tools** declared in the request are still forwarded to the LLM — the model can still request function calls, but the client is responsible for executing them and sending results back in subsequent requests.
+- This is useful when you want to handle all tool orchestration client-side or simply need a stateless Responses-to-Chat-Completions proxy.
+
 ### Running Examples
 
 Explore the various capabilities with our example scripts located in the [./examples](./examples) folder:
