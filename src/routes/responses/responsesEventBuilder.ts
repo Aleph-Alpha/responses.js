@@ -153,9 +153,7 @@ export async function* buildResponsesEvents(
 
 					const currentReasoningItem = responseObject.output.at(-1) as PatchedResponseReasoningItem;
 					if (mirrorRawReasoningToSummary) {
-						let summaryPart = currentReasoningItem.summary.at(-1) as
-							| ReasoningSummaryTextContent
-							| undefined;
+						let summaryPart = currentReasoningItem.summary.at(-1) as ReasoningSummaryTextContent | undefined;
 						if (!summaryPart) {
 							summaryPart = {
 								type: "summary_text",

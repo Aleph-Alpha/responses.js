@@ -93,9 +93,7 @@ describe("finalizeLastOutputItem", () => {
 		};
 		responseObject.output.push(reasoning as unknown as ResponseOutputItem);
 
-		const events = await collectEvents(
-			finalizeLastOutputItem(responseObject, traceContext, log, new Set(), true)
-		);
+		const events = await collectEvents(finalizeLastOutputItem(responseObject, traceContext, log, new Set(), true));
 		const types = events.map((e) => e.type);
 
 		expect(types).toEqual([
@@ -177,9 +175,7 @@ describe("finalizeLastOutputItem", () => {
 		responseObject.output.push(mcpCall);
 
 		const alreadyCalledMcpIds = new Set(["mcp_1"]);
-		const events = await collectEvents(
-			finalizeLastOutputItem(responseObject, traceContext, log, alreadyCalledMcpIds)
-		);
+		const events = await collectEvents(finalizeLastOutputItem(responseObject, traceContext, log, alreadyCalledMcpIds));
 
 		expect(events).toHaveLength(0);
 	});
