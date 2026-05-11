@@ -78,7 +78,6 @@ export async function* handleOneTurnStream(
 			llmEvents,
 			responseObject,
 			mcpToolsMapping,
-			payload,
 			traceContext,
 			log,
 			alreadyCalledMcpIds,
