@@ -126,9 +126,7 @@ describe("executeMcpCall", () => {
 
 		(callMcpTool as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("connection refused"));
 
-		await expect(executeMcpCall(mcpCall, 0, mcpToolsMapping, traceContext, log)).rejects.toThrow(
-			"connection refused"
-		);
+		await expect(executeMcpCall(mcpCall, 0, mcpToolsMapping, traceContext, log)).rejects.toThrow("connection refused");
 	});
 
 	it("uses correct output_index in events", async () => {

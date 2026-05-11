@@ -68,14 +68,7 @@ describe("buildResponsesEvents", () => {
 
 		const responseObject = createMockResponseObject();
 		const events = await collectEvents(
-			buildResponsesEvents(
-				fromArray(llmEvents),
-				responseObject,
-				new Map(),
-				traceContext,
-				log,
-				new Set()
-			)
+			buildResponsesEvents(fromArray(llmEvents), responseObject, new Map(), traceContext, log, new Set())
 		);
 
 		const types = events.map((e) => e.type);
@@ -95,14 +88,7 @@ describe("buildResponsesEvents", () => {
 
 		const responseObject = createMockResponseObject();
 		const events = await collectEvents(
-			buildResponsesEvents(
-				fromArray(llmEvents),
-				responseObject,
-				new Map(),
-				traceContext,
-				log,
-				new Set()
-			)
+			buildResponsesEvents(fromArray(llmEvents), responseObject, new Map(), traceContext, log, new Set())
 		);
 
 		const textDeltas = events
@@ -122,14 +108,7 @@ describe("buildResponsesEvents", () => {
 
 		const responseObject = createMockResponseObject();
 		await collectEvents(
-			buildResponsesEvents(
-				fromArray(llmEvents),
-				responseObject,
-				new Map(),
-				traceContext,
-				log,
-				new Set()
-			)
+			buildResponsesEvents(fromArray(llmEvents), responseObject, new Map(), traceContext, log, new Set())
 		);
 
 		expect(responseObject.usage?.input_tokens).toBe(10);
@@ -145,14 +124,7 @@ describe("buildResponsesEvents", () => {
 
 		const responseObject = createMockResponseObject();
 		const events = await collectEvents(
-			buildResponsesEvents(
-				fromArray(llmEvents),
-				responseObject,
-				new Map(),
-				traceContext,
-				log,
-				new Set()
-			)
+			buildResponsesEvents(fromArray(llmEvents), responseObject, new Map(), traceContext, log, new Set())
 		);
 
 		const types = events.map((e) => e.type);
@@ -187,14 +159,7 @@ describe("buildResponsesEvents", () => {
 
 		const responseObject = createMockResponseObject();
 		const events = await collectEvents(
-			buildResponsesEvents(
-				fromArray(llmEvents),
-				responseObject,
-				mcpToolsMapping,
-				traceContext,
-				log,
-				new Set()
-			)
+			buildResponsesEvents(fromArray(llmEvents), responseObject, mcpToolsMapping, traceContext, log, new Set())
 		);
 
 		const types = events.map((e) => e.type);
@@ -211,14 +176,7 @@ describe("buildResponsesEvents", () => {
 
 		const responseObject = createMockResponseObject();
 		const events = await collectEvents(
-			buildResponsesEvents(
-				fromArray(llmEvents),
-				responseObject,
-				new Map(),
-				traceContext,
-				log,
-				new Set()
-			)
+			buildResponsesEvents(fromArray(llmEvents), responseObject, new Map(), traceContext, log, new Set())
 		);
 
 		const types = events.map((e) => e.type);
@@ -234,15 +192,7 @@ describe("buildResponsesEvents", () => {
 
 		const responseObject = createMockResponseObject();
 		const events = await collectEvents(
-			buildResponsesEvents(
-				fromArray(llmEvents),
-				responseObject,
-				new Map(),
-				traceContext,
-				log,
-				new Set(),
-				"detailed"
-			)
+			buildResponsesEvents(fromArray(llmEvents), responseObject, new Map(), traceContext, log, new Set(), "detailed")
 		);
 
 		const reasoningItem = responseObject.output.find((item) => item.type === "reasoning");
@@ -264,14 +214,7 @@ describe("buildResponsesEvents", () => {
 
 		const responseObject = createMockResponseObject();
 		await collectEvents(
-			buildResponsesEvents(
-				fromArray(llmEvents),
-				responseObject,
-				new Map(),
-				traceContext,
-				log,
-				new Set()
-			)
+			buildResponsesEvents(fromArray(llmEvents), responseObject, new Map(), traceContext, log, new Set())
 		);
 
 		const reasoningItem = responseObject.output.find((item) => item.type === "reasoning");
@@ -283,15 +226,7 @@ describe("buildResponsesEvents", () => {
 
 		const responseObject = createMockResponseObject();
 		const events = await collectEvents(
-			buildResponsesEvents(
-				fromArray(llmEvents),
-				responseObject,
-				new Map(),
-				traceContext,
-				log,
-				new Set(),
-				"auto"
-			)
+			buildResponsesEvents(fromArray(llmEvents), responseObject, new Map(), traceContext, log, new Set(), "auto")
 		);
 
 		const reasoningItem = responseObject.output.find((item) => item.type === "reasoning");

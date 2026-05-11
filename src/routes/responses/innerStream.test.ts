@@ -181,7 +181,10 @@ describe("innerRunStream", () => {
 			return {
 				events: [],
 				messages: [
-					{ role: "assistant", tool_calls: [{ id: mcpCallItem.id, type: "function", function: { name: "search", arguments: "{}" } }] },
+					{
+						role: "assistant",
+						tool_calls: [{ id: mcpCallItem.id, type: "function", function: { name: "search", arguments: "{}" } }],
+					},
 					{ role: "tool", tool_call_id: mcpCallItem.id, content: "result" },
 				],
 			};
@@ -260,7 +263,10 @@ describe("innerRunStream", () => {
 			return {
 				events: [],
 				messages: [
-					{ role: "assistant", tool_calls: [{ id: mcpCallItem.id, type: "function", function: { name: "search", arguments: "{}" } }] },
+					{
+						role: "assistant",
+						tool_calls: [{ id: mcpCallItem.id, type: "function", function: { name: "search", arguments: "{}" } }],
+					},
 					{ role: "tool", tool_call_id: mcpCallItem.id, content: "search result" },
 				],
 			};
@@ -321,7 +327,10 @@ describe("innerRunStream", () => {
 			return {
 				events: [],
 				messages: [
-					{ role: "assistant", tool_calls: [{ id: mcpCallItem.id, type: "function", function: { name: "search", arguments: "{}" } }] },
+					{
+						role: "assistant",
+						tool_calls: [{ id: mcpCallItem.id, type: "function", function: { name: "search", arguments: "{}" } }],
+					},
 					{ role: "tool", tool_call_id: mcpCallItem.id, content: "result" },
 				],
 			};
@@ -367,19 +376,21 @@ describe("innerRunStream", () => {
 		it("runs exactly one LLM turn and does not execute MCP tools", async () => {
 			mockConfig.agenticLoopDisabled = true;
 
-			mockHandleOneTurnStream.mockImplementation((_apiKey: unknown, _payload: unknown, responseObject: IncompleteResponse) => {
-				// Simulate model returning an MCP tool call
-				responseObject.output.push({
-					type: "mcp_call",
-					id: "mcp_disabled_1",
-					name: "search",
-					server_label: "test-server",
-					arguments: "{}",
-				} as ResponseOutputItem.McpCall);
-				return (async function* () {
-					// no events
-				})();
-			});
+			mockHandleOneTurnStream.mockImplementation(
+				(_apiKey: unknown, _payload: unknown, responseObject: IncompleteResponse) => {
+					// Simulate model returning an MCP tool call
+					responseObject.output.push({
+						type: "mcp_call",
+						id: "mcp_disabled_1",
+						name: "search",
+						server_label: "test-server",
+						arguments: "{}",
+					} as ResponseOutputItem.McpCall);
+					return (async function* () {
+						// no events
+					})();
+				}
+			);
 
 			const req = createMockReq({ input: "Hello" });
 			const responseObject = createMockResponseObject();
