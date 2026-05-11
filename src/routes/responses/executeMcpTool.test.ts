@@ -74,8 +74,8 @@ describe("executeMcpCall", () => {
 
 		expect(result.messages).not.toBeNull();
 		expect(result.messages).toHaveLength(2);
-		expect(result.messages![0]).toMatchObject({ role: "assistant" });
-		expect(result.messages![1]).toMatchObject({ role: "tool", tool_call_id: "mcp_1", content: "search results" });
+		expect(result.messages?.[0]).toMatchObject({ role: "assistant" });
+		expect(result.messages?.[1]).toMatchObject({ role: "tool", tool_call_id: "mcp_1", content: "search results" });
 	});
 
 	it("handles MCP tool error and returns failed events without messages", async () => {
