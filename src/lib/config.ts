@@ -70,6 +70,8 @@ export const config = {
 	// ── Tool loop ───────────────────────────────────────────────────────
 	/** Maximum iterations for the auto-tool-call loop */
 	maxToolIterations: parseIntEnv("MAX_TOOL_ITERATIONS", 5),
+	/** Disable the agentic loop entirely (no MCP execution, no multi-turn tool calls) */
+	agenticLoopDisabled: parseBoolEnv("AGENTIC_LOOP_DISABLED", false),
 
 	// ── Logging ─────────────────────────────────────────────────────────
 	/** Pino log level (debug, info, warn, error, fatal) */

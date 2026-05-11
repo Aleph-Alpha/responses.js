@@ -128,4 +128,20 @@ describe("config", () => {
 			'Invalid value for BACKEND_MODE: expected one of [chat_completions, responses_api], got "invalid"'
 		);
 	});
+
+	it("defaults AGENTIC_LOOP_DISABLED to false", async () => {
+		delete process.env.AGENTIC_LOOP_DISABLED;
+
+		const cfg = await loadConfig();
+
+		expect(cfg.agenticLoopDisabled).toBe(false);
+	});
+
+	it("reads AGENTIC_LOOP_DISABLED correctly", async () => {
+		process.env.AGENTIC_LOOP_DISABLED = "true";
+
+		const cfg = await loadConfig();
+
+		expect(cfg.agenticLoopDisabled).toBe(true);
+	});
 });

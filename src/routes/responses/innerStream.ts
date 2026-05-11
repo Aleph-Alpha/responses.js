@@ -6,6 +6,7 @@ import type { ResponseOutputItem } from "openai/resources/responses/responses";
 import type { PatchedResponseStreamEvent } from "../../openai_patch";
 import type { Attributes, Context } from "@opentelemetry/api";
 import type { Logger } from "pino";
+import type { ChatCompletionCreateParamsStreaming } from "openai/resources/chat/completions.js";
 import { type IncompleteResponse, tracer, OTEL_GENAI_CAPTURE_TOOL_CONTENT } from "./types.js";
 import { NOT_FORWARDED_HEADERS, buildJsonAttribute } from "./utils.js";
 import { config } from "../../lib/config.js";
@@ -14,6 +15,7 @@ import { buildLLMPayload } from "./payloadBuilder.js";
 import { handleOneTurnStream } from "./handleOneTurn.js";
 import { listMcpToolsStream, callApprovedMCPToolStream } from "./mcpStream.js";
 import { executeMcpCall } from "./executeMcpTool.js";
+import type { ReasoningSummaryMode } from "./responsesEventBuilder.js";
 
 export async function* innerRunStream(
 	req: ValidatedRequest<CreateResponseParams>,
@@ -151,16 +153,62 @@ export async function* innerRunStream(
 	// Prepare payload for the LLM
 	const payload = buildLLMPayload(req.body, messages, tools);
 
-	// If MCP approval requests => execute them and return (no LLM call)
-	if (Array.isArray(req.body.input)) {
-		for (const item of req.body.input) {
+	// Call the LLM until no new message is added to the payload.
+	// New messages can be added if the LLM calls an MCP tool that is automatically run.
+	// A maximum number of iterations is set to avoid infinite loops.
+	// When agenticLoopDisabled is true, run exactly one turn with no MCP execution.
+	if (config.agenticLoopDisabled) {
+		for await (const event of handleOneTurnStream(
+			apiKey,
+			payload,
+			responseObject,
+			mcpToolsMapping,
+			defaultHeaders,
+			traceContext,
+			log,
+			req.body.reasoning?.summary ?? null,
+			signal
+		)) {
+			yield event;
+		}
+	} else {
+		yield* agenticLoop(
+			apiKey,
+			payload,
+			responseObject,
+			mcpToolsMapping,
+			defaultHeaders,
+			traceContext,
+			log,
+			req.body.reasoning?.summary ?? null,
+			req.body.input,
+			signal
+		);
+	}
+}
+
+async function* agenticLoop(
+	apiKey: string,
+	payload: ChatCompletionCreateParamsStreaming,
+	responseObject: IncompleteResponse,
+	mcpToolsMapping: Map<string, McpServerParams>,
+	defaultHeaders: Record<string, string>,
+	traceContext: Context,
+	log: Logger,
+	reasoningSummaryMode: ReasoningSummaryMode,
+	input: CreateResponseParams["input"],
+	signal?: AbortSignal
+): AsyncGenerator<PatchedResponseStreamEvent> {
+	// If MCP approval requests => execute them (no LLM call)
+	if (Array.isArray(input)) {
+		for (const item of input) {
 			if (item.type === "mcp_approval_response" && item.approve) {
-				const approvalRequest = req.body.input.find(
+				const approvalRequest = input.find(
 					(i) => i.type === "mcp_approval_request" && i.id === item.approval_request_id
 				) as McpApprovalRequestParams | undefined;
 				// Derive the mcp_call ID from the approval request ID (mcpr_<ID> -> mcp_<ID>)
 				const mcpCallId = "mcp_" + item.approval_request_id.split("_")[1];
-				const mcpCall = req.body.input.find((i) => i.type === "mcp_call" && i.id === mcpCallId);
+				const mcpCall = input.find((i) => i.type === "mcp_call" && i.id === mcpCallId);
 				if (mcpCall) {
 					// MCP call for that approval request has already been made, so we can skip it
 					continue;
@@ -182,9 +230,6 @@ export async function* innerRunStream(
 		}
 	}
 
-	// Call the LLM until no new message is added to the payload.
-	// New messages can be added if the LLM calls an MCP tool that is automatically run.
-	// A maximum number of iterations is set to avoid infinite loops.
 	let previousMessageCount: number;
 	// Set to True if one of the conditions are detected:
 	// - there is a function call in the output without a corresponding function_call_output in the input
@@ -207,7 +252,7 @@ export async function* innerRunStream(
 			defaultHeaders,
 			traceContext,
 			log,
-			req.body.reasoning?.summary ?? null,
+			reasoningSummaryMode,
 			signal
 		)) {
 			yield event;
@@ -235,7 +280,7 @@ export async function* innerRunStream(
 		// Check if the model requested actions that need to be handled by the user/client:
 		// - function_call without a corresponding function_call_output (matched by call_id)
 		// - mcp_approval_request without a corresponding mcp_approval_response (matched by id/approval_request_id)
-		const inputItems = Array.isArray(req.body.input) ? req.body.input : [];
+		const inputItems = Array.isArray(input) ? input : [];
 		hasUserTask = responseObject.output.some((item) => {
 			if (item.type === "function_call") {
 				return !inputItems.some((i) => i.type === "function_call_output" && i.call_id === item.call_id);
