@@ -35,14 +35,103 @@ export async function* innerRunStream(
 		Object.entries(req.headers).filter(([key]) => !NOT_FORWARDED_HEADERS.has(key.toLowerCase()))
 	) as Record<string, string>;
 
+	// Format input to Chat Completion format
+	const messages = formatInputToMessages(req.body.input, req.body.instructions, log);
+
+	if (config.agenticLoopDisabled) {
+
+
+		// When agenticLoopDisabled is true, run exactly one turn with no MCP execution.
+		// Still convert any mcp_list_tools from input so the LLM knows which tools exist.
+		const tools = convertMcpListToolsToCompletionTools(req.body.input);
+		const payload = buildLLMPayload(req.body, messages, tools.length > 0 ? tools : undefined);
+		for await (const event of handleOneTurnStream(
+			apiKey,
+			payload,
+			responseObject,
+			new Map(),
+			defaultHeaders,
+			traceContext,
+			log,
+			req.body.reasoning?.summary ?? null,
+			signal
+		)) {
+			yield event;
+		}
+	} else {
+		// Trace function tool calls + prepare tools (incl. MCP)
+		const { tools, mcpToolsMapping } = yield* prepareToolsAndTraceStream(
+			req.body.input,
+			req.body.tools,
+			responseObject,
+			traceContext,
+			log
+		);
+
+		const payload = buildLLMPayload(req.body, messages, tools);
+
+		yield* agenticLoop(
+			apiKey,
+			payload,
+			responseObject,
+			mcpToolsMapping,
+			defaultHeaders,
+			traceContext,
+			log,
+			req.body.reasoning?.summary ?? null,
+			req.body.input,
+			signal
+		);
+	}
+}
+
+/**
+ * Extracts all `mcp_list_tools` items from the input list and converts their tools
+ * into the `ChatCompletionTool` format (type: "function").
+ */
+function convertMcpListToolsToCompletionTools(
+	input: CreateResponseParams["input"]
+): ChatCompletionTool[] {
+	if (!Array.isArray(input)) {
+		return [];
+	}
+	const tools: ChatCompletionTool[] = [];
+	for (const item of input) {
+		if (item.type !== "mcp_list_tools") {
+			continue;
+		}
+		for (const mcpTool of item.tools) {
+			tools.push({
+				type: "function" as const,
+				function: {
+					name: String(mcpTool.name),
+					parameters: mcpTool.input_schema as FunctionParameters,
+					description: mcpTool.description ?? undefined,
+				},
+			});
+		}
+	}
+	return tools;
+}
+
+async function* prepareToolsAndTraceStream(
+	input: CreateResponseParams["input"],
+	bodyTools: CreateResponseParams["tools"],
+	responseObject: IncompleteResponse,
+	traceContext: Context,
+	log: Logger
+): AsyncGenerator<
+	PatchedResponseStreamEvent,
+	{ tools: ChatCompletionTool[] | undefined; mcpToolsMapping: Map<string, McpServerParams> }
+> {
 	// Trace function tool calls provided by the client in input history
-	if (Array.isArray(req.body.input)) {
-		for (const item of req.body.input) {
+	if (Array.isArray(input)) {
+		for (const item of input) {
 			if (item.type !== "function_call") {
 				continue;
 			}
 
-			const matchingOutput = req.body.input.find(
+			const matchingOutput = input.find(
 				(inputItem) => inputItem.type === "function_call_output" && inputItem.call_id === item.call_id
 			) as Extract<NonNullable<CreateResponseParams["input"]>[number], { type: "function_call_output" }> | undefined;
 
@@ -75,8 +164,8 @@ export async function* innerRunStream(
 	// List MCP tools from server (if required) + prepare tools for the LLM
 	let tools: ChatCompletionTool[] | undefined = [];
 	const mcpToolsMapping = new Map<string, McpServerParams>();
-	if (req.body.tools) {
-		for (const tool of req.body.tools) {
+	if (bodyTools) {
+		for (const tool of bodyTools) {
 			switch (tool.type) {
 				case "function":
 					tools?.push({
@@ -93,8 +182,8 @@ export async function* innerRunStream(
 					let mcpListTools: ResponseOutputItem.McpListTools | undefined;
 
 					// If MCP list tools is already in the input, use it
-					if (Array.isArray(req.body.input)) {
-						for (const item of req.body.input) {
+					if (Array.isArray(input)) {
+						for (const item of input) {
 							if (item.type === "mcp_list_tools" && item.server_label === tool.server_label) {
 								mcpListTools = item;
 								log.debug({ server_label: tool.server_label }, "Using MCP list tools from input");
@@ -147,44 +236,7 @@ export async function* innerRunStream(
 		tools = undefined;
 	}
 
-	// Format input to Chat Completion format
-	const messages = formatInputToMessages(req.body.input, req.body.instructions, log);
-
-	// Prepare payload for the LLM
-	const payload = buildLLMPayload(req.body, messages, tools);
-
-	// Call the LLM until no new message is added to the payload.
-	// New messages can be added if the LLM calls an MCP tool that is automatically run.
-	// A maximum number of iterations is set to avoid infinite loops.
-	// When agenticLoopDisabled is true, run exactly one turn with no MCP execution.
-	if (config.agenticLoopDisabled) {
-		for await (const event of handleOneTurnStream(
-			apiKey,
-			payload,
-			responseObject,
-			mcpToolsMapping,
-			defaultHeaders,
-			traceContext,
-			log,
-			req.body.reasoning?.summary ?? null,
-			signal
-		)) {
-			yield event;
-		}
-	} else {
-		yield* agenticLoop(
-			apiKey,
-			payload,
-			responseObject,
-			mcpToolsMapping,
-			defaultHeaders,
-			traceContext,
-			log,
-			req.body.reasoning?.summary ?? null,
-			req.body.input,
-			signal
-		);
-	}
+	return { tools, mcpToolsMapping };
 }
 
 async function* agenticLoop(
