@@ -79,8 +79,18 @@ interface PatchedResponseReasoningTextDoneEvent {
 	text: string;
 }
 
+interface PatchedResponseFunctionCallArgumentsDoneEvent {
+	type: "response.function_call_arguments.done";
+	sequence_number: number;
+	item_id: string;
+	output_index: number;
+	name: string;
+	arguments: string;
+}
+
 export type PatchedResponseStreamEvent =
-	| OpenAIResponseStreamEvent
+	| Exclude<OpenAIResponseStreamEvent, { type: "response.function_call_arguments.done" }>
+	| PatchedResponseFunctionCallArgumentsDoneEvent
 	| PatchedResponseReasoningSummaryPartAddedEvent
 	| PatchedResponseReasoningSummaryPartDoneEvent
 	| PatchedResponseReasoningSummaryTextDeltaEvent
