@@ -39,11 +39,49 @@ export async function* innerRunStream(
 	const messages = formatInputToMessages(req.body.input, req.body.instructions, log);
 
 	if (config.agenticLoopDisabled) {
-
-
 		// When agenticLoopDisabled is true, run exactly one turn with no MCP execution.
-		// Still convert any mcp_list_tools from input so the LLM knows which tools exist.
-		const tools = convertMcpListToolsToCompletionTools(req.body.input);
+		// Still list MCP tools and include function tools so the LLM knows which tools exist.
+		const tools: ChatCompletionTool[] = [];
+
+		// Include function tools from req.body.tools
+		if (req.body.tools) {
+			for (const tool of req.body.tools) {
+				if (tool.type === "function") {
+					tools.push({
+						type: "function" as const,
+						function: {
+							name: tool.name,
+							parameters: tool.parameters,
+							description: tool.description,
+							strict: tool.strict,
+						},
+					});
+				} else if (tool.type === "mcp") {
+					// List MCP tools from server
+					for await (const event of listMcpToolsStream(tool, responseObject, traceContext, log)) {
+						yield event;
+					}
+					const lastOutput = responseObject.output.at(-1);
+					if (lastOutput && lastOutput.type === "mcp_list_tools" && lastOutput.tools) {
+						for (const mcpTool of lastOutput.tools) {
+							tools.push({
+								type: "function" as const,
+								function: {
+									name: String(mcpTool.name),
+									parameters: mcpTool.input_schema as FunctionParameters,
+									description: mcpTool.description ?? undefined,
+								},
+							});
+						}
+					}
+				}
+			}
+		}
+
+		// Also convert any mcp_list_tools already in input
+		const inputTools = convertMcpListToolsToCompletionTools(req.body.input);
+		tools.push(...inputTools);
+
 		const payload = buildLLMPayload(req.body, messages, tools.length > 0 ? tools : undefined);
 		for await (const event of handleOneTurnStream(
 			apiKey,
@@ -89,9 +127,7 @@ export async function* innerRunStream(
  * Extracts all `mcp_list_tools` items from the input list and converts their tools
  * into the `ChatCompletionTool` format (type: "function").
  */
-function convertMcpListToolsToCompletionTools(
-	input: CreateResponseParams["input"]
-): ChatCompletionTool[] {
+function convertMcpListToolsToCompletionTools(input: CreateResponseParams["input"]): ChatCompletionTool[] {
 	if (!Array.isArray(input)) {
 		return [];
 	}

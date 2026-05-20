@@ -133,9 +133,10 @@ export async function* finalizeLastOutputItem(
 			type: "response.function_call_arguments.done",
 			item_id: lastOutputItem.id as string,
 			output_index: responseObject.output.length - 1,
+			name: lastOutputItem.name,
 			arguments: lastOutputItem.arguments,
 			sequence_number: SEQUENCE_NUMBER_PLACEHOLDER,
-		};
+		} as PatchedResponseStreamEvent;
 
 		lastOutputItem.status = "completed";
 		functionCallSpan.setAttribute("tool.status", "requested");
