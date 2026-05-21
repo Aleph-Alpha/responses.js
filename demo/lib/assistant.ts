@@ -46,13 +46,6 @@ export interface ToolCallItem {
 	}[];
 }
 
-export interface McpListToolsItem {
-	type: "mcp_list_tools";
-	id: string;
-	server_label: string;
-	tools: { name: string; description?: string }[];
-}
-
 export interface McpApprovalRequestItem {
 	type: "mcp_approval_request";
 	id: string;
@@ -61,7 +54,7 @@ export interface McpApprovalRequestItem {
 	arguments?: string;
 }
 
-export type Item = MessageItem | ToolCallItem | McpListToolsItem | McpApprovalRequestItem;
+export type Item = MessageItem | ToolCallItem | McpApprovalRequestItem;
 
 export const handleTurn = async (messages: any[], tools: any[], onMessage: (data: any) => void) => {
 	try {
@@ -476,19 +469,6 @@ export const processMessages = async () => {
 			case "response.completed": {
 				console.log("response completed", data);
 				const { response } = data;
-
-				// Handle MCP tools list
-				const mcpListToolsMessage = response.output.find((m: Item) => m.type === "mcp_list_tools");
-
-				if (mcpListToolsMessage) {
-					chatMessages.push({
-						type: "mcp_list_tools",
-						id: mcpListToolsMessage.id,
-						server_label: mcpListToolsMessage.server_label,
-						tools: mcpListToolsMessage.tools || [],
-					});
-					setChatMessages([...chatMessages]);
-				}
 
 				// Handle MCP approval request
 				const mcpApprovalRequestMessage = response.output.find((m: Item) => m.type === "mcp_approval_request");
