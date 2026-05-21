@@ -14,12 +14,11 @@ import {
 } from "./types.js";
 import { buildJsonAttribute, recordError } from "./utils.js";
 
-export async function* listMcpToolsStream(
+export async function listMcpTools(
 	tool: McpServerParams,
-	responseObject: IncompleteResponse,
 	traceContext: Context,
 	log: Logger
-): AsyncGenerator<PatchedResponseStreamEvent> {
+): Promise<ResponseOutputItem.McpListTools> {
 	const span = tracer.startSpan(
 		"gen_ai.execute_tool",
 		{
@@ -38,32 +37,11 @@ export async function* listMcpToolsStream(
 		server_label: tool.server_label,
 		tools: [],
 	};
-	responseObject.output.push(outputObject);
-
-	yield {
-		type: "response.output_item.added",
-		output_index: responseObject.output.length - 1,
-		item: outputObject,
-		sequence_number: SEQUENCE_NUMBER_PLACEHOLDER,
-	};
-
-	yield {
-		type: "response.mcp_list_tools.in_progress",
-		item_id: outputObject.id,
-		output_index: responseObject.output.length - 1,
-		sequence_number: SEQUENCE_NUMBER_PLACEHOLDER,
-	};
 
 	let mcp: Awaited<ReturnType<typeof connectMcpServer>> | undefined;
 	try {
 		mcp = await connectMcpServer(tool, log);
 		const mcpTools = await mcp.listTools();
-		yield {
-			type: "response.mcp_list_tools.completed",
-			item_id: outputObject.id,
-			output_index: responseObject.output.length - 1,
-			sequence_number: SEQUENCE_NUMBER_PLACEHOLDER,
-		};
 		outputObject.tools = mcpTools.tools.map((mcpTool) => ({
 			input_schema: mcpTool.inputSchema,
 			name: mcpTool.name,
@@ -71,22 +49,11 @@ export async function* listMcpToolsStream(
 			description: mcpTool.description,
 		}));
 		span.setAttribute("mcp.tools.count", outputObject.tools.length);
-		yield {
-			type: "response.output_item.done",
-			output_index: responseObject.output.length - 1,
-			item: outputObject,
-			sequence_number: SEQUENCE_NUMBER_PLACEHOLDER,
-		};
+		return outputObject;
 	} catch (error) {
 		const errorMessage = `Failed to list tools from MCP server '${tool.server_label}': ${error instanceof Error ? error.message : "Unknown error"}`;
 		log.error({ err: error, server_label: tool.server_label }, "Failed to list MCP tools");
 		recordError(span, error);
-		yield {
-			type: "response.mcp_list_tools.failed",
-			item_id: outputObject.id,
-			output_index: responseObject.output.length - 1,
-			sequence_number: SEQUENCE_NUMBER_PLACEHOLDER,
-		};
 		throw new Error(errorMessage);
 	} finally {
 		if (mcp) {
@@ -94,6 +61,15 @@ export async function* listMcpToolsStream(
 		}
 		span.end();
 	}
+}
+
+export async function* listMcpToolsStream(
+	tool: McpServerParams,
+	_responseObject: IncompleteResponse,
+	traceContext: Context,
+	log: Logger
+): AsyncGenerator<PatchedResponseStreamEvent> {
+	await listMcpTools(tool, traceContext, log);
 }
 
 /*

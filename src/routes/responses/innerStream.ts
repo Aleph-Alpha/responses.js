@@ -12,7 +12,7 @@ import { config } from "../../lib/config.js";
 import { formatInputToMessages } from "./messageFormatting.js";
 import { buildLLMPayload } from "./payloadBuilder.js";
 import { handleOneTurnStream } from "./handleOneTurn.js";
-import { listMcpToolsStream, callApprovedMCPToolStream } from "./mcpStream.js";
+import { listMcpTools, callApprovedMCPToolStream } from "./mcpStream.js";
 
 export async function* innerRunStream(
 	req: ValidatedRequest<CreateResponseParams>,
@@ -99,18 +99,9 @@ export async function* innerRunStream(
 							}
 						}
 					}
-					// Otherwise, list tools from MCP server
+					// Otherwise, list tools from MCP server for internal orchestration only.
 					if (!mcpListTools) {
-						for await (const event of listMcpToolsStream(tool, responseObject, traceContext, log)) {
-							yield event;
-						}
-						const lastOutput = responseObject.output.at(-1);
-						if (!lastOutput || lastOutput.type !== "mcp_list_tools") {
-							throw new Error(
-								`Expected mcp_list_tools output after listMcpToolsStream, got ${lastOutput?.type ?? "undefined"}`
-							);
-						}
-						mcpListTools = lastOutput;
+						mcpListTools = await listMcpTools(tool, traceContext, log);
 					}
 
 					// Only allowed tools are forwarded to the LLM

@@ -32,7 +32,7 @@ vi.mock("../../mcp.js", () => ({
 	connectMcpServer: vi.fn(),
 }));
 
-import { listMcpToolsStream, callApprovedMCPToolStream } from "./mcpStream.js";
+import { listMcpTools, listMcpToolsStream, callApprovedMCPToolStream } from "./mcpStream.js";
 import { connectMcpServer, callMcpTool } from "../../mcp.js";
 import { createMockResponseObject, createMockLogger, collectEvents } from "./__test_helpers__/mocks.js";
 import type { McpServerParams } from "../../schemas.js";
@@ -57,7 +57,7 @@ describe("listMcpToolsStream", () => {
 		vi.clearAllMocks();
 	});
 
-	it("yields correct event sequence on success", async () => {
+	it("fetches tools internally without adding public response output or events", async () => {
 		const mockClient = {
 			listTools: vi.fn().mockResolvedValue({
 				tools: [
@@ -74,19 +74,21 @@ describe("listMcpToolsStream", () => {
 		(connectMcpServer as ReturnType<typeof vi.fn>).mockResolvedValue(mockClient);
 
 		const responseObject = createMockResponseObject();
+		const result = await listMcpTools(mcpTool, traceContext, log);
 		const events = await collectEvents(listMcpToolsStream(mcpTool, responseObject, traceContext, log));
 		const types = events.map((e) => e.type);
 
-		expect(types).toEqual([
-			"response.output_item.added",
-			"response.mcp_list_tools.in_progress",
-			"response.mcp_list_tools.completed",
-			"response.output_item.done",
-		]);
-		expect(types.filter((t) => t === "response.output_item.done")).toHaveLength(1);
+		expect(result).toMatchObject({
+			type: "mcp_list_tools",
+			server_label: "test-server",
+			tools: [{ name: "search", input_schema: { type: "object" }, description: "Search tool" }],
+		});
+		expect(types).toEqual([]);
+		expect(responseObject.output).toEqual([]);
+		expect(types.some((type) => type.includes("mcp_list_tools"))).toBe(false);
 	});
 
-	it("yields failed event and throws on connection error", async () => {
+	it("throws on connection error without yielding public failure events", async () => {
 		(connectMcpServer as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("Connection refused"));
 
 		const responseObject = createMockResponseObject();
