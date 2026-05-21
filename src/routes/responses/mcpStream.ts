@@ -63,15 +63,6 @@ export async function listMcpTools(
 	}
 }
 
-export async function* listMcpToolsStream(
-	tool: McpServerParams,
-	_responseObject: IncompleteResponse,
-	traceContext: Context,
-	log: Logger
-): AsyncGenerator<PatchedResponseStreamEvent> {
-	await listMcpTools(tool, traceContext, log);
-}
-
 /*
  * Perform an approved MCP tool call and stream the response.
  */

@@ -32,7 +32,7 @@ vi.mock("../../mcp.js", () => ({
 	connectMcpServer: vi.fn(),
 }));
 
-import { listMcpTools, listMcpToolsStream, callApprovedMCPToolStream } from "./mcpStream.js";
+import { listMcpTools, callApprovedMCPToolStream } from "./mcpStream.js";
 import { connectMcpServer, callMcpTool } from "../../mcp.js";
 import { createMockResponseObject, createMockLogger, collectEvents } from "./__test_helpers__/mocks.js";
 import type { McpServerParams } from "../../schemas.js";
@@ -42,7 +42,7 @@ import type { Logger } from "pino";
 
 const log = createMockLogger() as unknown as Logger;
 
-describe("listMcpToolsStream", () => {
+describe("listMcpTools", () => {
 	const traceContext = {} as Context;
 	const mcpTool: McpServerParams = {
 		server_label: "test-server",
@@ -75,25 +75,19 @@ describe("listMcpToolsStream", () => {
 
 		const responseObject = createMockResponseObject();
 		const result = await listMcpTools(mcpTool, traceContext, log);
-		const events = await collectEvents(listMcpToolsStream(mcpTool, responseObject, traceContext, log));
-		const types = events.map((e) => e.type);
 
 		expect(result).toMatchObject({
 			type: "mcp_list_tools",
 			server_label: "test-server",
 			tools: [{ name: "search", input_schema: { type: "object" }, description: "Search tool" }],
 		});
-		expect(types).toEqual([]);
 		expect(responseObject.output).toEqual([]);
-		expect(types.some((type) => type.includes("mcp_list_tools"))).toBe(false);
 	});
 
 	it("throws on connection error without yielding public failure events", async () => {
 		(connectMcpServer as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("Connection refused"));
 
-		const responseObject = createMockResponseObject();
-
-		await expect(collectEvents(listMcpToolsStream(mcpTool, responseObject, traceContext, log))).rejects.toThrow(
+		await expect(listMcpTools(mcpTool, traceContext, log)).rejects.toThrow(
 			"Failed to list tools from MCP server 'test-server'"
 		);
 	});

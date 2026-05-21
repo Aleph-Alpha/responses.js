@@ -259,7 +259,7 @@ export async function* closeLastOutputItem(
 				sequence_number: SEQUENCE_NUMBER_PLACEHOLDER,
 			};
 		} else if (lastOutputItem?.type === "mcp_list_tools") {
-			// Already finalized by `listMcpToolsStream`; do not re-emit done.
+			// Internal MCP tool-list metadata is not client-visible; do not re-emit done.
 		} else {
 			throw new StreamingError(
 				`Not implemented: expected message, function_call, or mcp_call, got ${(lastOutputItem as ResponseOutputItem)?.type}`
