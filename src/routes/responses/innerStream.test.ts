@@ -401,7 +401,7 @@ describe("innerRunStream", () => {
 			expect(mockExecuteMcpCall).not.toHaveBeenCalled();
 		});
 
-		it("still lists MCP tools but does not execute them when agentic loop is disabled", async () => {
+		it("skips MCP connection and does not list or execute MCP tools when agentic loop is disabled", async () => {
 			mockConfig.agenticLoopDisabled = true;
 
 			mockHandleOneTurnStream.mockReturnValue(
@@ -411,15 +411,6 @@ describe("innerRunStream", () => {
 			);
 
 			const { listMcpToolsStream } = await import("./mcpStream.js");
-			vi.mocked(listMcpToolsStream).mockImplementation(function* (tool, responseObject) {
-				responseObject.output.push({
-					type: "mcp_list_tools",
-					id: "mcpl_test",
-					server_label: tool.server_label,
-					tools: [{ name: "search", description: "Search", input_schema: { type: "object" } }],
-				} as ResponseOutputItem.McpListTools);
-				yield undefined as never; // satisfy require-yield
-			} as never);
 
 			const req = createMockReq({
 				input: "Hello",
@@ -438,20 +429,11 @@ describe("innerRunStream", () => {
 
 			await collectEvents(innerRunStream(req, responseObject, traceContext));
 
-			expect(listMcpToolsStream).toHaveBeenCalled();
+			expect(listMcpToolsStream).not.toHaveBeenCalled();
 			expect(mockHandleOneTurnStream).toHaveBeenCalledTimes(1);
-			// MCP tools should be in the payload
+			// No tools should be in the payload since MCP tools are skipped
 			const payload = mockHandleOneTurnStream.mock.calls[0][1];
-			expect(payload.tools).toEqual([
-				{
-					type: "function",
-					function: {
-						name: "search",
-						parameters: { type: "object" },
-						description: "Search",
-					},
-				},
-			]);
+			expect(payload.tools).toBeUndefined();
 			expect(mockExecuteMcpCall).not.toHaveBeenCalled();
 		});
 

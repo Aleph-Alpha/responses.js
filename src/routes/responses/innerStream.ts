@@ -39,11 +39,11 @@ export async function* innerRunStream(
 	const messages = formatInputToMessages(req.body.input, req.body.instructions, log);
 
 	if (config.agenticLoopDisabled) {
-		// When agenticLoopDisabled is true, run exactly one turn with no MCP execution.
-		// Still list MCP tools and include function tools so the LLM knows which tools exist.
+		// When agenticLoopDisabled is true, run exactly one turn with no MCP connection or execution.
+		// Only include function tools so the LLM knows which non-MCP tools exist.
 		const tools: ChatCompletionTool[] = [];
 
-		// Include function tools from req.body.tools
+		// Include function tools from req.body.tools (skip MCP tools entirely)
 		if (req.body.tools) {
 			for (const tool of req.body.tools) {
 				if (tool.type === "function") {
@@ -56,24 +56,6 @@ export async function* innerRunStream(
 							strict: tool.strict,
 						},
 					});
-				} else if (tool.type === "mcp") {
-					// List MCP tools from server
-					for await (const event of listMcpToolsStream(tool, responseObject, traceContext, log)) {
-						yield event;
-					}
-					const lastOutput = responseObject.output.at(-1);
-					if (lastOutput && lastOutput.type === "mcp_list_tools" && lastOutput.tools) {
-						for (const mcpTool of lastOutput.tools) {
-							tools.push({
-								type: "function" as const,
-								function: {
-									name: String(mcpTool.name),
-									parameters: mcpTool.input_schema as FunctionParameters,
-									description: mcpTool.description ?? undefined,
-								},
-							});
-						}
-					}
 				}
 			}
 		}
