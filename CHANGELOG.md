@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.2](https://github.com/Aleph-Alpha/responses.js/compare/v1.0.1...v1.0.2) (2026-05-26)
+
+
+### Bug Fixes
+
+* cve-2026-8723 ([#61](https://github.com/Aleph-Alpha/responses.js/issues/61)) ([5f8c78d](https://github.com/Aleph-Alpha/responses.js/commit/5f8c78d00862b389b1bfb4e65061f094fadfc404))
+
 ## [1.0.1](https://github.com/Aleph-Alpha/responses.js/compare/v1.0.0...v1.0.1) (2026-05-21)
 
 
