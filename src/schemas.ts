@@ -71,6 +71,7 @@ const mcpCallParamsSchema = z.object({
 	name: z.string(),
 	server_label: z.string(),
 	arguments: z.string(),
+	output: z.string().nullable().default(null),
 });
 
 export const createResponseParamsSchema = z.object({
