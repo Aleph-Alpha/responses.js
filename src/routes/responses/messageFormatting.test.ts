@@ -426,15 +426,29 @@ describe("formatInputToMessages", () => {
 					name: "tool1",
 					server_label: "server1",
 					arguments: '{"a":1}',
+					output: "result",
 				},
 			],
 			null
 		);
 		expect(result).toEqual([
 			{
+				role: "assistant",
+				tool_calls: [
+					{
+						id: "mcp_123",
+						type: "function",
+						function: {
+							name: "tool1",
+							arguments: '{"a":1}',
+						},
+					},
+				],
+			},
+			{
 				role: "tool",
-				content: "MCP call (mcp_123). Server: 'server1'. Tool: 'tool1'. Arguments: '{\"a\":1}'.",
-				tool_call_id: "mcp_call",
+				content: "result",
+				tool_call_id: "mcp_123",
 			},
 		]);
 	});

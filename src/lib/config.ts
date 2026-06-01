@@ -50,8 +50,8 @@ export const config = {
 	shutdownTimeoutMs: parseIntEnv("SHUTDOWN_TIMEOUT_MS", 10_000),
 
 	// ── Upstream (LLM) ──────────────────────────────────────────────────
-	/** Backend mode: chat_completions (translate) or responses_api (native) */
-	backendMode: parseEnumEnv("BACKEND_MODE", ["chat_completions", "responses_api"] as const, "chat_completions"),
+	/** Backend mode: chat_completions (translate), under development: responses_api (native) */
+	backendMode: parseEnumEnv("BACKEND_MODE", ["chat_completions"] as const, "chat_completions"), // ["chat_completions", "responses_api"]
 	/** Base URL for the Chat Completions backend */
 	openaiBaseUrl: parseStringEnv("OPENAI_BASE_URL", "https://router.huggingface.co/v1"),
 	/** Max connections per origin in the shared HTTP agent */

@@ -73,10 +73,12 @@ export async function* handleOneTurnStream(
 				: AbortSignal.timeout(config.llmRequestTimeoutMs),
 		});
 
-		const llmEvents =
-			config.backendMode === "responses_api"
-				? parseResponsesApiStream(stream, log)
-				: parseChatCompletionsStream(stream, log);
+		const llmEvents = parseChatCompletionsStream(stream, log);
+		// TODO: switch to parseResponsesApiStream when backendMode is responses_api
+		// const llmEvents =
+		// 	config.backendMode === "responses_api"
+		// 		? parseResponsesApiStream(stream, log)
+		// 		: parseChatCompletionsStream(stream, log);
 
 		for await (const event of buildResponsesEvents(
 			llmEvents,
