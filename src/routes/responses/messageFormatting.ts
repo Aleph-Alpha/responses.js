@@ -257,11 +257,26 @@ export function formatInputToMessages(
 			}
 			case "mcp_call": {
 				pending = flushPendingAssistant(pending, messages);
-				messages.push({
-					role: "tool",
-					content: `MCP call (${item.id}). Server: '${item.server_label}'. Tool: '${item.name}'. Arguments: '${item.arguments}'.`,
-					tool_call_id: "mcp_call",
-				});
+				if (item.output !== null) {
+					messages.push({
+						role: "assistant",
+						tool_calls: [
+							{
+								id: item.id,
+								type: "function",
+								function: {
+									name: item.name,
+									arguments: item.arguments,
+								},
+							},
+						],
+					});
+					messages.push({
+						role: "tool",
+						content: item.output,
+						tool_call_id: item.id,
+					});
+				}
 				break;
 			}
 			case "mcp_approval_request": {
@@ -269,7 +284,7 @@ export function formatInputToMessages(
 				messages.push({
 					role: "tool",
 					content: `MCP approval request (${item.id}). Server: '${item.server_label}'. Tool: '${item.name}'. Arguments: '${item.arguments}'.`,
-					tool_call_id: "mcp_approval_request",
+					tool_call_id: "mcp_approval_request", // for compability reasons we keep as is
 				});
 				break;
 			}
@@ -278,7 +293,7 @@ export function formatInputToMessages(
 				messages.push({
 					role: "tool",
 					content: `MCP approval response (${item.id}). Approved: ${item.approve}. Reason: ${item.reason}.`,
-					tool_call_id: "mcp_approval_response",
+					tool_call_id: "mcp_approval_response", // for compability reasons we keep as is
 				});
 				break;
 			}
