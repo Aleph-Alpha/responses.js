@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.4](https://github.com/Aleph-Alpha/responses.js/compare/v1.0.3...v1.0.4) (2026-06-05)
+
+
+### Bug Fixes
+
+* cves 2026.06.05 ([2c13a0d](https://github.com/Aleph-Alpha/responses.js/commit/2c13a0d8f6b4c71d5ff9fa0551666c142b17e5e5))
+
 ## [1.0.3](https://github.com/Aleph-Alpha/responses.js/compare/v1.0.2...v1.0.3) (2026-06-02)
 
 
