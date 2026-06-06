@@ -4,7 +4,6 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import ToolCall from "./tool-call";
 import Message from "./message";
 import Annotations from "./annotations";
-import McpToolsList from "./mcp-tools-list";
 import McpApproval from "./mcp-approval";
 import { Item, McpApprovalRequestItem } from "@/lib/assistant";
 import LoadingMessage from "./loading-message";
@@ -58,8 +57,6 @@ const Chat: React.FC<ChatProps> = ({ items, onSendMessage, onApprovalResponse })
 											<Annotations annotations={item.content[0].annotations} />
 										)}
 									</div>
-								) : item.type === "mcp_list_tools" ? (
-									<McpToolsList item={item} />
 								) : item.type === "mcp_approval_request" ? (
 									<McpApproval item={item as McpApprovalRequestItem} onRespond={onApprovalResponse} />
 								) : null}

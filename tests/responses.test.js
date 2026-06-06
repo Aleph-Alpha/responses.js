@@ -497,23 +497,11 @@ describe("responses.js", function () {
 		});
 
 		assert.ok(Array.isArray(response.output));
-		assert.ok(response.output.length >= 2);
+		assert.ok(response.output.length >= 1);
+		assert.ok(!response.output.some((item) => item.type === "mcp_list_tools"));
 
-		// Check first output item (mcp_list_tools)
-		const listToolsOutput = response.output[0];
-		assert.equal(listToolsOutput.type, "mcp_list_tools");
-		assert.equal(listToolsOutput.server_label, "gitmcp");
-		assert.ok(listToolsOutput.id);
-		assert.ok(Array.isArray(listToolsOutput.tools));
-		assert.ok(listToolsOutput.tools.length > 0);
-
-		// Check that tools array contains expected tools
-		const toolNames = listToolsOutput.tools.map((tool) => tool.name);
-		assert.ok(toolNames.includes("fetch_tiktoken_documentation"));
-		assert.ok(toolNames.includes("search_tiktoken_documentation"));
-
-		// Check second output item (mcp_call)
-		const mcpCallOutput = response.output[1];
+		// Check first output item (mcp_call)
+		const mcpCallOutput = response.output[0];
 		assert.equal(mcpCallOutput.type, "mcp_call");
 		assert.equal(mcpCallOutput.name, "fetch_tiktoken_documentation");
 		assert.equal(mcpCallOutput.server_label, "gitmcp");
@@ -571,23 +559,11 @@ describe("responses.js", function () {
 		});
 
 		assert.ok(Array.isArray(response.output));
-		assert.ok(response.output.length === 2);
+		assert.ok(response.output.length === 1);
+		assert.ok(!response.output.some((item) => item.type === "mcp_list_tools"));
 
-		// Check first output item (mcp_list_tools)
-		const listToolsOutput = response.output[0];
-		assert.equal(listToolsOutput.type, "mcp_list_tools");
-		assert.equal(listToolsOutput.server_label, "gitmcp");
-		assert.ok(listToolsOutput.id);
-		assert.ok(Array.isArray(listToolsOutput.tools));
-		assert.ok(listToolsOutput.tools.length > 0);
-
-		// Check that tools array contains expected tools
-		const toolNames = listToolsOutput.tools.map((tool) => tool.name);
-		assert.ok(toolNames.includes("fetch_tiktoken_documentation"));
-		assert.ok(toolNames.includes("search_tiktoken_documentation"));
-
-		// Check second output item (mcp_approval_request)
-		const approvalRequestOutput = response.output[1];
+		// Check first output item (mcp_approval_request)
+		const approvalRequestOutput = response.output[0];
 		assert.equal(approvalRequestOutput.type, "mcp_approval_request");
 		assert.equal(approvalRequestOutput.name, "fetch_tiktoken_documentation");
 		assert.equal(approvalRequestOutput.server_label, "gitmcp");
@@ -616,23 +592,11 @@ describe("responses.js", function () {
 		});
 
 		assert.ok(Array.isArray(response.output));
-		assert.ok(response.output.length >= 2);
+		assert.ok(response.output.length >= 1);
+		assert.ok(!response.output.some((item) => item.type === "mcp_list_tools"));
 
-		// Check first output item (mcp_list_tools)
-		const listToolsOutput = response.output[0];
-		assert.equal(listToolsOutput.type, "mcp_list_tools");
-		assert.equal(listToolsOutput.server_label, "gitmcp");
-		assert.ok(listToolsOutput.id);
-		assert.ok(Array.isArray(listToolsOutput.tools));
-		assert.ok(listToolsOutput.tools.length > 0);
-
-		// Check that tools array contains expected tools
-		const toolNames = listToolsOutput.tools.map((tool) => tool.name);
-		assert.ok(toolNames.includes("fetch_tiktoken_documentation"));
-		assert.ok(toolNames.includes("search_tiktoken_documentation"));
-
-		// Check second output item (mcp_call)
-		const mcpCallOutput = response.output[1];
+		// Check first output item (mcp_call)
+		const mcpCallOutput = response.output[0];
 		assert.equal(mcpCallOutput.type, "mcp_call");
 		assert.equal(mcpCallOutput.name, "fetch_tiktoken_documentation");
 		assert.equal(mcpCallOutput.server_label, "gitmcp");
@@ -703,6 +667,7 @@ describe("responses.js", function () {
 
 		assert.ok(Array.isArray(response.output));
 		assert.ok(response.output.length === 1);
+		assert.ok(!response.output.some((item) => item.type === "mcp_list_tools"));
 
 		// Check that the first output item is an approval request (not a list_tools call)
 		const approvalRequestOutput = response.output[0];

@@ -40,7 +40,7 @@ vi.mock("./handleOneTurn.js", () => ({
 
 // Mock mcpStream
 vi.mock("./mcpStream.js", () => ({
-	listMcpToolsStream: vi.fn(),
+	listMcpTools: vi.fn(),
 	callApprovedMCPToolStream: vi.fn(),
 }));
 
