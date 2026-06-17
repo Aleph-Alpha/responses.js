@@ -10,7 +10,6 @@ import { recordError } from "./utils.js";
 import { modelCallCounter, modelCallDuration } from "../../lib/metrics.js";
 import { config } from "../../lib/config.js";
 import { parseChatCompletionsStream } from "./chatCompletionsParser.js";
-import { parseResponsesApiStream } from "./responsesApiParser.js";
 import { buildResponsesEvents, type ReasoningSummaryMode } from "./responsesEventBuilder.js";
 
 // Shared undici Agent per worker process — avoids creating a new connection pool per request.
