@@ -1,5 +1,34 @@
 # Changelog
 
+## [1.1.0](https://github.com/Aleph-Alpha/responses.js/compare/v1.0.5...v1.1.0) (2026-06-17)
+
+
+### Features
+
+* add AGENTIC_LOOP_DISABLED option to only do translation ([b3edbc4](https://github.com/Aleph-Alpha/responses.js/commit/b3edbc40429b382c544eeac9888f02179f0bbc18))
+* add BACKEND_MODE option to select parser ([4f2b708](https://github.com/Aleph-Alpha/responses.js/commit/4f2b708668bba48433ae2a1c349bbb15e1eca1cb))
+* extend response.function_call_arguments.done to contain name ([2a9ce84](https://github.com/Aleph-Alpha/responses.js/commit/2a9ce849bebbba3fb05ed0969a1306ef0abe15da))
+* refactor main agent loop ([e2869b8](https://github.com/Aleph-Alpha/responses.js/commit/e2869b88f87753b28385cddedad75cf7f1c9f3c3))
+* skip mcp tools when agentic loop is disabled ([73a07d1](https://github.com/Aleph-Alpha/responses.js/commit/73a07d1e8c1ea8119f5d79ccc08599915c7fea7e))
+* start refactor and implement llmEvents ([1fce531](https://github.com/Aleph-Alpha/responses.js/commit/1fce53196bc577c3d8eb46f995ff359ca593402d))
+
+
+### Bug Fixes
+
+* gh review ([afdd70d](https://github.com/Aleph-Alpha/responses.js/commit/afdd70df1bea9a07d7f92ab3cc06a002c7b96b25))
+* lint ([2762171](https://github.com/Aleph-Alpha/responses.js/commit/27621716768e563255624e5c934596df13964339))
+* lint ([3fcaae5](https://github.com/Aleph-Alpha/responses.js/commit/3fcaae5e2907fdfd808fe14fd49aa7ccc78d16f7))
+* lint 2 ([8e95275](https://github.com/Aleph-Alpha/responses.js/commit/8e95275557136a0ffea81a61608bd862268a63c4))
+* mcp_call has the output option ([8cbf25a](https://github.com/Aleph-Alpha/responses.js/commit/8cbf25a4f1fba435d62f4fa51e09e1074229f860))
+* move mcp logic to agentic loop ([6996118](https://github.com/Aleph-Alpha/responses.js/commit/699611892c5c448e5a43f118f12bb60fe9a0aeda))
+* remove config setting for response api ([0e6a398](https://github.com/Aleph-Alpha/responses.js/commit/0e6a398c7e3947f6d2f924ec5215cd65adc53773))
+
+
+### Dependencies
+
+* **deps:** bump form-data from 4.0.5 to 4.0.6 in /demo ([4b63e62](https://github.com/Aleph-Alpha/responses.js/commit/4b63e62906713caad7bb9f0d1c260619813505e3))
+* **deps:** bump js-yaml from 4.1.1 to 4.2.0 in /demo ([51651ad](https://github.com/Aleph-Alpha/responses.js/commit/51651ad635382a1e891c54854f1868d2f9396d2b))
+
 ## [1.0.5](https://github.com/Aleph-Alpha/responses.js/compare/v1.0.4...v1.0.5) (2026-06-17)
 
 
