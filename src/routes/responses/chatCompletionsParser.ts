@@ -41,9 +41,14 @@ export async function* parseChatCompletionsStream(
 			}
 
 			if (delta.tool_calls[0].function?.name) {
+				var call_id = delta.tool_calls[0].id ?? delta.tool_calls[0].index?.toString()
+				// The check above does not discard empty strings. We do the 2nd check here
+				if (call_id === "") {
+					 call_id = delta.tool_calls[0].index?.toString()
+				}
 				yield {
 					type: "tool_call_start",
-					toolCallId: delta.tool_calls[0].id ?? "",
+					toolCallId: call_id ?? "unknown",
 					name: delta.tool_calls[0].function.name,
 				};
 			}
