@@ -366,24 +366,51 @@ describe("formatInputToMessages", () => {
 		]);
 	});
 
-	it("preserves an assistant message with empty-string content", () => {
-		// Regression: the pre-rewrite filter at the bottom of
-		// formatInputToMessages accepted any string content via
-		// `typeof message.content === "string"`, including "". Pin
-		// that behavior so the rewrite does not silently drop empty
-		// assistant messages.
+	it("drops an assistant message that is empty or whitespace-only (no tool calls)", () => {
+		// A whitespace-only assistant message carries no information. Critically,
+		// when such a message lands last it is forwarded to the backend as an
+		// assistant prefill ("continue this turn"), which suppresses the backend's
+		// reasoning parser — the model then emits its chain-of-thought as literal
+		// <think>…</think> inside `content` and it leaks into the answer. These
+		// messages are dropped; surrounding turns are preserved.
 		const result = formatInputToMessages(
 			[
 				{ type: "message" as const, role: "user" as const, content: "hi" },
 				{ type: "message" as const, role: "assistant" as const, content: "" },
+				{ type: "message" as const, role: "assistant" as const, content: "\n\n" },
 				{ type: "message" as const, role: "user" as const, content: "bye" },
 			],
 			null
 		);
 		expect(result).toEqual([
 			{ role: "user", content: "hi" },
-			{ role: "assistant", content: "" },
 			{ role: "user", content: "bye" },
+		]);
+	});
+
+	it("keeps tool calls even when the assistant text is whitespace-only", () => {
+		// The whitespace text is dropped (content: null) but the tool call — the
+		// information-bearing part of the turn — must be preserved.
+		const result = formatInputToMessages(
+			[
+				{ type: "message" as const, role: "user" as const, content: "search" },
+				{ type: "message" as const, role: "assistant" as const, content: "\n\n" },
+				{
+					type: "function_call" as const,
+					call_id: "c1",
+					name: "file_search",
+					arguments: "{}",
+				},
+			],
+			null
+		);
+		expect(result).toEqual([
+			{ role: "user", content: "search" },
+			{
+				role: "assistant",
+				content: null,
+				tool_calls: [{ id: "c1", type: "function", function: { name: "file_search", arguments: "{}" } }],
+			},
 		]);
 	});
 
