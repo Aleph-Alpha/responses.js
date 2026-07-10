@@ -67,6 +67,15 @@ export const config = {
 	/** Timeout (ms) for MCP tool calls */
 	mcpTimeoutMs: parseIntEnv("MCP_TIMEOUT_MS", 30_000),
 
+	// ── Integrations ────────────────────────────────────────────────────
+	/**
+	 * Enable Bedrock integration behavior: emit MCP metadata items
+	 * (mcp_list_tools, mcp_approval_request, mcp_approval_response) as
+	 * user messages instead of orphan tool results. When false, keeps the
+	 * original behavior of emitting them as tool-role messages.
+	 */
+	enableIntegrationBedrock: parseBoolEnv("ENABLE_INTEGRATION_BEDROCK", false),
+
 	// ── Tool loop ───────────────────────────────────────────────────────
 	/** Maximum iterations for the auto-tool-call loop */
 	maxToolIterations: parseIntEnv("MAX_TOOL_ITERATIONS", 5),

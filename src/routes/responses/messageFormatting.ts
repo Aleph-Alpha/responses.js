@@ -1,6 +1,7 @@
 import type { CreateResponseParams } from "../../schemas.js";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions.js";
 import type { Logger } from "pino";
+import { config } from "../../lib/config.js";
 
 // Mirror the openai-node `ChatCompletionMessageToolCall` shape locally
 // to keep this module's imports stable across minor openai-node
@@ -248,10 +249,18 @@ export function formatInputToMessages(
 			}
 			case "mcp_list_tools": {
 				pending = flushPendingAssistant(pending, messages);
-				messages.push({
-					role: "user",
-					content: `MCP list tools. Server: '${item.server_label}'.`,
-				});
+				if (config.enableIntegrationBedrock) {
+					messages.push({
+						role: "user",
+						content: `MCP list tools. Server: '${item.server_label}'.`,
+					});
+				} else {
+					messages.push({
+						role: "tool",
+						content: `MCP list tools. Server: '${item.server_label}'.`,
+						tool_call_id: "mcp_list_tools",
+					});
+				}
 				break;
 			}
 			case "mcp_call": {
@@ -280,18 +289,34 @@ export function formatInputToMessages(
 			}
 			case "mcp_approval_request": {
 				pending = flushPendingAssistant(pending, messages);
-				messages.push({
-					role: "user",
-					content: `MCP approval request (${item.id}). Server: '${item.server_label}'. Tool: '${item.name}'. Arguments: '${item.arguments}'.`,
-				});
+				if (config.enableIntegrationBedrock) {
+					messages.push({
+						role: "user",
+						content: `MCP approval request (${item.id}). Server: '${item.server_label}'. Tool: '${item.name}'. Arguments: '${item.arguments}'.`,
+					});
+				} else {
+					messages.push({
+						role: "tool",
+						content: `MCP approval request (${item.id}). Server: '${item.server_label}'. Tool: '${item.name}'. Arguments: '${item.arguments}'.`,
+						tool_call_id: "mcp_approval_request", // for compability reasons we keep as is
+					});
+				}
 				break;
 			}
 			case "mcp_approval_response": {
 				pending = flushPendingAssistant(pending, messages);
-				messages.push({
-					role: "user",
-					content: `MCP approval response (${item.id}). Approved: ${item.approve}. Reason: ${item.reason}.`,
-				});
+				if (config.enableIntegrationBedrock) {
+					messages.push({
+						role: "user",
+						content: `MCP approval response (${item.id}). Approved: ${item.approve}. Reason: ${item.reason}.`,
+					});
+				} else {
+					messages.push({
+						role: "tool",
+						content: `MCP approval response (${item.id}). Approved: ${item.approve}. Reason: ${item.reason}.`,
+						tool_call_id: "mcp_approval_response", // for compability reasons we keep as is
+					});
+				}
 				break;
 			}
 		}
