@@ -249,9 +249,8 @@ export function formatInputToMessages(
 			case "mcp_list_tools": {
 				pending = flushPendingAssistant(pending, messages);
 				messages.push({
-					role: "tool",
+					role: "user",
 					content: `MCP list tools. Server: '${item.server_label}'.`,
-					tool_call_id: "mcp_list_tools",
 				});
 				break;
 			}
@@ -282,18 +281,16 @@ export function formatInputToMessages(
 			case "mcp_approval_request": {
 				pending = flushPendingAssistant(pending, messages);
 				messages.push({
-					role: "tool",
+					role: "user",
 					content: `MCP approval request (${item.id}). Server: '${item.server_label}'. Tool: '${item.name}'. Arguments: '${item.arguments}'.`,
-					tool_call_id: "mcp_approval_request", // for compability reasons we keep as is
 				});
 				break;
 			}
 			case "mcp_approval_response": {
 				pending = flushPendingAssistant(pending, messages);
 				messages.push({
-					role: "tool",
+					role: "user",
 					content: `MCP approval response (${item.id}). Approved: ${item.approve}. Reason: ${item.reason}.`,
-					tool_call_id: "mcp_approval_response", // for compability reasons we keep as is
 				});
 				break;
 			}
