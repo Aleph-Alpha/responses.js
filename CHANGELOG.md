@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1](https://github.com/Aleph-Alpha/responses.js/compare/v1.1.0...v1.1.1) (2026-07-10)
+
+
+### Bug Fixes
+
+* emit MCP metadata items as user messages, not orphan tool results ([#74](https://github.com/Aleph-Alpha/responses.js/issues/74)) ([5ba9769](https://github.com/Aleph-Alpha/responses.js/commit/5ba976900560d1d0767ddb009646413697d72dae))
+
 ## [1.1.0](https://github.com/Aleph-Alpha/responses.js/compare/v1.0.5...v1.1.0) (2026-06-17)
 
 
