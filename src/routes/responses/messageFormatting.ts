@@ -57,12 +57,21 @@ function flushPendingAssistant(pending: PendingAssistant | null, messages: ChatC
 	if (pending === null) {
 		return null;
 	}
-	// Match the pre-rewrite filter at the bottom of formatInputToMessages:
-	// keep messages where content is ANY string (including ""), or a
-	// non-empty array. Drop only when content is null/missing AND there
-	// are no tool calls.
+	// Keep messages that carry information: non-whitespace text, a non-empty
+	// content array, or tool calls. Drop assistant messages that are empty or
+	// whitespace-only AND have no tool calls.
+	//
+	// Whitespace-only content matters most for the *last* message: a trailing
+	// empty assistant message is forwarded to the backend as an assistant
+	// prefill ("continue this turn"), which suppresses the backend's reasoning
+	// parser. The model then emits its chain-of-thought as literal
+	// <think>…</think> inside `content` instead of the structured reasoning
+	// field, leaking raw reasoning into the answer. Dropping the empty message
+	// keeps the next assistant turn fresh so reasoning is parsed into its own
+	// channel. (An all-whitespace assistant turn carries no information anyway.)
 	const hasContent =
-		typeof pending.content === "string" || (Array.isArray(pending.content) && pending.content.length > 0);
+		(typeof pending.content === "string" && pending.content.trim() !== "") ||
+		(Array.isArray(pending.content) && pending.content.length > 0);
 	const hasToolCalls = pending.toolCalls.length > 0;
 	if (!hasContent && !hasToolCalls) {
 		return null;
