@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.2](https://github.com/Aleph-Alpha/responses.js/compare/v1.1.1...v1.1.2) (2026-07-13)
+
+
+### Bug Fixes
+
+* drop whitespace-only assistant messages in input translation ([#73](https://github.com/Aleph-Alpha/responses.js/issues/73)) ([7b90715](https://github.com/Aleph-Alpha/responses.js/commit/7b90715d5035194eaf4eba86695e5fc560fef112))
+
 ## [1.1.1](https://github.com/Aleph-Alpha/responses.js/compare/v1.1.0...v1.1.1) (2026-07-10)
 
 
