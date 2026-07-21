@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.1.3](https://github.com/Aleph-Alpha/responses.js/compare/v1.1.2...v1.1.3) (2026-07-21)
+
+
+### Bug Fixes
+
+* cves for 2026.07.21 ([#77](https://github.com/Aleph-Alpha/responses.js/issues/77)) ([cd14ac1](https://github.com/Aleph-Alpha/responses.js/commit/cd14ac120245109f1a00015afd912b8723150df7))
+
+
+### Dependencies
+
+* **deps:** bump js-yaml, eslint and eslint-config-next in /demo ([#79](https://github.com/Aleph-Alpha/responses.js/issues/79)) ([79fe198](https://github.com/Aleph-Alpha/responses.js/commit/79fe198fe31d8827f39d74ff0c0f5be9a1b9f229))
+
 ## [1.1.2](https://github.com/Aleph-Alpha/responses.js/compare/v1.1.1...v1.1.2) (2026-07-13)
 
 
