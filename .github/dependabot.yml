@@ -37,3 +37,14 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+
+  # Weekly GitHub Actions bumps (from upstream)
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns: ["*"]
