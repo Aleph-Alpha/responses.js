@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.4](https://github.com/Aleph-Alpha/responses.js/compare/v1.1.3...v1.1.4) (2026-07-22)
+
+
+### Bug Fixes
+
+* bump transitive overrides for CVEs ([#82](https://github.com/Aleph-Alpha/responses.js/issues/82)) ([ce1a4e7](https://github.com/Aleph-Alpha/responses.js/commit/ce1a4e7293ffac6f65793ea1c84301cdcaa67ecd))
+
 ## [1.1.3](https://github.com/Aleph-Alpha/responses.js/compare/v1.1.2...v1.1.3) (2026-07-21)
 
 
