@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.5](https://github.com/Aleph-Alpha/responses.js/compare/v1.1.4...v1.1.5) (2026-07-27)
+
+
+### Bug Fixes
+
+* bump js-yaml, postcss, brace-expansion overrides for CVEs ([#84](https://github.com/Aleph-Alpha/responses.js/issues/84)) ([1bc9207](https://github.com/Aleph-Alpha/responses.js/commit/1bc92078761a2df33e3ea27d20e5b95be1ba0bd5))
+
 ## [1.1.4](https://github.com/Aleph-Alpha/responses.js/compare/v1.1.3...v1.1.4) (2026-07-22)
 
 
