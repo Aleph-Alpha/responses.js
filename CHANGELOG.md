@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.1.6](https://github.com/Aleph-Alpha/responses.js/compare/v1.1.5...v1.1.6) (2026-08-04)
+
+
+### Bug Fixes
+
+* bump undici and overrides for CVEs (2026.08.04) ([#89](https://github.com/Aleph-Alpha/responses.js/issues/89)) ([21cc761](https://github.com/Aleph-Alpha/responses.js/commit/21cc76137e9590aed0f6139c92be6129b413321f))
+
+
+### Dependencies
+
+* **deps-dev:** bump postcss from 8.5.10 to 8.5.18 in /demo ([#86](https://github.com/Aleph-Alpha/responses.js/issues/86)) ([4bd7032](https://github.com/Aleph-Alpha/responses.js/commit/4bd7032e3f283c4d3c87f45c62f137c5277568a8))
+* **deps:** bump brace-expansion in /demo ([#90](https://github.com/Aleph-Alpha/responses.js/issues/90)) ([eb68878](https://github.com/Aleph-Alpha/responses.js/commit/eb68878b3d0d4d3e499e9dfb4097ff4f1ad0b864))
+* **deps:** bump next from 15.5.18 to 15.5.21 in /demo ([#87](https://github.com/Aleph-Alpha/responses.js/issues/87)) ([bd9fb58](https://github.com/Aleph-Alpha/responses.js/commit/bd9fb587103f9f2e220ef6cd75043a2c49543d1b))
+* **deps:** bump postcss and next in /demo ([#91](https://github.com/Aleph-Alpha/responses.js/issues/91)) ([c87b002](https://github.com/Aleph-Alpha/responses.js/commit/c87b0024b8bcc9752a62ef02cd616be5dc56ae01))
+
 ## [1.1.5](https://github.com/Aleph-Alpha/responses.js/compare/v1.1.4...v1.1.5) (2026-07-27)
 
 
