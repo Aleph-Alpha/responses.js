@@ -1,0 +1,12 @@
+# Code owners for responses.js.
+#
+# The org branch-protection ruleset requires code-owner review on pull
+# requests. Without this file that requirement matches nothing, so every
+# PR satisfies it vacuously. Listing an owner here makes the existing
+# control take effect.
+#
+# Syntax: https://docs.github.com/articles/about-code-owners
+# Last matching pattern wins.
+
+# Default owner for everything in the repo.
+* @Aleph-Alpha/responses-api
