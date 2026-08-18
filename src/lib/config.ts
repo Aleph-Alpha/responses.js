@@ -62,6 +62,13 @@ export const config = {
 	upstreamConnectTimeoutMs: parseIntEnv("UPSTREAM_CONNECT_TIMEOUT_MS", 30_000),
 	/** Maximum time (ms) for an LLM streaming request */
 	llmRequestTimeoutMs: parseIntEnv("LLM_REQUEST_TIMEOUT_MS", 300_000),
+	/**
+	 * Retries the OpenAI SDK makes after a failed LLM request. Total attempts
+	 * are this value plus one. The SDK retries every status of 500 and above,
+	 * so a saturated backend that answers 503 receives all of these attempts.
+	 * Set to 0 to disable retries.
+	 */
+	llmMaxRetries: parseIntEnv("LLM_MAX_RETRIES", 1),
 
 	// ── MCP ─────────────────────────────────────────────────────────────
 	/** Timeout (ms) for MCP tool calls */
