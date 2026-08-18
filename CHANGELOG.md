@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.7](https://github.com/Aleph-Alpha/responses.js/compare/v1.1.6...v1.1.7) (2026-08-18)
+
+
+### Bug Fixes
+
+* make LLM retry count configurable and lower the default ([#93](https://github.com/Aleph-Alpha/responses.js/issues/93)) ([a32f544](https://github.com/Aleph-Alpha/responses.js/commit/a32f54470f300ecc1ec60d426f21bf0c4eb8287b))
+
 ## [1.1.6](https://github.com/Aleph-Alpha/responses.js/compare/v1.1.5...v1.1.6) (2026-08-04)
 
 
