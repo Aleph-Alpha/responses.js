@@ -58,7 +58,7 @@ export async function* handleOneTurnStream(
 		baseURL: config.openaiBaseUrl,
 		apiKey: apiKey,
 		defaultHeaders,
-		maxRetries: 5,
+		maxRetries: config.llmMaxRetries,
 		fetchOptions: {
 			dispatcher: sharedDispatcher,
 		},

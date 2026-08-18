@@ -47,6 +47,30 @@ describe("config", () => {
 		expect(cfg.maxToolIterations).toBe(10);
 	});
 
+	it("defaults llmMaxRetries to 1, allowing a single retry", async () => {
+		delete process.env.LLM_MAX_RETRIES;
+
+		const cfg = await loadConfig();
+
+		expect(cfg.llmMaxRetries).toBe(1);
+	});
+
+	it("reads LLM_MAX_RETRIES from the environment", async () => {
+		process.env.LLM_MAX_RETRIES = "5";
+
+		const cfg = await loadConfig();
+
+		expect(cfg.llmMaxRetries).toBe(5);
+	});
+
+	it("allows LLM_MAX_RETRIES=0 to disable retries entirely", async () => {
+		process.env.LLM_MAX_RETRIES = "0";
+
+		const cfg = await loadConfig();
+
+		expect(cfg.llmMaxRetries).toBe(0);
+	});
+
 	it("reads boolean env vars correctly", async () => {
 		process.env.LOG_PRETTY = "true";
 		process.env.OTEL_DISABLED = "1";
