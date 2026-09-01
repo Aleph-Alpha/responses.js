@@ -56,29 +56,65 @@ export const postCreateResponse = async (
 	req: ValidatedRequest<CreateResponseParams>,
 	res: ExpressResponse
 ): Promise<void> => {
-	// To avoid duplicated code, we run all requests as stream.
-	const events = runCreateResponseStream(req, res);
+	// Auth is checked before any event is produced: once the stream has started
+	// writing, it is too late to send an error status.
+	const apiKey = req.headers.authorization?.split(" ")[1];
+	if (!apiKey) {
+		res.status(401).json({
+			success: false,
+			error: "Unauthorized",
+		});
+		return;
+	}
 
-	// Then we return in the correct format depending on the user 'stream' flag.
-	if (req.body.stream) {
-		res.setHeader("Content-Type", "text/event-stream");
-		res.setHeader("Connection", "keep-alive");
-		console.debug("Stream request");
-		for await (const event of events) {
-			console.debug(`Event #${event.sequence_number}: ${event.type}`);
-			res.write(`data: ${JSON.stringify(event)}\n\n`);
-		}
-		res.end();
-	} else {
-		console.debug("Non-stream request");
-		for await (const event of events) {
-			if (event.type === "response.completed" || event.type === "response.failed") {
-				console.debug(event.type);
-				res.json(event.response);
+	// Express 4 does not catch errors from async handlers: anything thrown here
+	// becomes an unhandled rejection and kills the process, so the whole handler
+	// is wrapped.
+	try {
+		// To avoid duplicated code, we run all requests as stream.
+		const events = runCreateResponseStream(req, apiKey);
+
+		// Then we return in the correct format depending on the user 'stream' flag.
+		if (req.body.stream) {
+			res.setHeader("Content-Type", "text/event-stream");
+			res.setHeader("Connection", "keep-alive");
+			console.debug("Stream request");
+			for await (const event of events) {
+				console.debug(`Event #${event.sequence_number}: ${event.type}`);
+				res.write(`data: ${JSON.stringify(event)}\n\n`);
 			}
+			res.end();
+		} else {
+			console.debug("Non-stream request");
+			for await (const event of events) {
+				if (event.type === "response.completed" || event.type === "response.failed") {
+					console.debug(event.type);
+					res.json(event.response);
+					break;
+				}
+			}
+		}
+	} catch (error) {
+		console.error("Error in postCreateResponse:", error);
+		if (!res.headersSent) {
+			res.status(500).json({
+				success: false,
+				error: errorMessage(error, "Internal server error"),
+			});
+		} else {
+			res.end();
 		}
 	}
 };
+
+function errorMessage(error: unknown, fallback: string): string {
+	return typeof error === "object" &&
+		error &&
+		"message" in error &&
+		typeof (error as { message: unknown }).message === "string"
+		? (error as { message: string }).message
+		: fallback;
+}
 
 /*
  * Top-level stream.
@@ -88,7 +124,7 @@ export const postCreateResponse = async (
  */
 async function* runCreateResponseStream(
 	req: ValidatedRequest<CreateResponseParams>,
-	res: ExpressResponse
+	apiKey: string
 ): AsyncGenerator<PatchedResponseStreamEvent> {
 	let sequenceNumber = 0;
 	// Prepare response object that will be iteratively populated
@@ -134,25 +170,17 @@ async function* runCreateResponseStream(
 
 	// Any events (LLM call, MCP call, list tools, etc.)
 	try {
-		for await (const event of innerRunStream(req, res, responseObject)) {
+		for await (const event of innerRunStream(req, apiKey, responseObject)) {
 			yield { ...event, sequence_number: sequenceNumber++ };
 		}
 	} catch (error) {
 		// Error event => stop
 		console.error("Error in stream:", error);
 
-		const message =
-			typeof error === "object" &&
-			error &&
-			"message" in error &&
-			typeof (error as { message: unknown }).message === "string"
-				? (error as { message: string }).message
-				: "An error occurred in stream";
-
 		responseObject.status = "failed";
 		responseObject.error = {
 			code: "server_error",
-			message,
+			message: errorMessage(error, "An error occurred in stream"),
 		};
 		yield {
 			type: "response.failed",
@@ -173,20 +201,10 @@ async function* runCreateResponseStream(
 
 async function* innerRunStream(
 	req: ValidatedRequest<CreateResponseParams>,
-	res: ExpressResponse,
+	apiKey: string,
 	responseObject: IncompleteResponse
 ): AsyncGenerator<PatchedResponseStreamEvent> {
-	// Retrieve API key from headers
-	const apiKey = req.headers.authorization?.split(" ")[1];
-	if (!apiKey) {
-		res.status(401).json({
-			success: false,
-			error: "Unauthorized",
-		});
-		return;
-	}
-
-	// Forward headers (except authorization handled separately)
+	// Forward headers (the exclusion set covers authorization)
 	const defaultHeaders = Object.fromEntries(
 		Object.entries(req.headers).filter(([key]) => !NOT_FORWARDED_HEADERS.has(key.toLowerCase()))
 	) as Record<string, string>;
@@ -518,7 +536,7 @@ async function* listMcpToolsStream(
  * Call LLM and stream the response.
  */
 async function* handleOneTurnStream(
-	apiKey: string | undefined,
+	apiKey: string,
 	payload: ChatCompletionCreateParamsStreaming,
 	responseObject: IncompleteResponse,
 	mcpToolsMapping: Record<string, McpServerParams>,
