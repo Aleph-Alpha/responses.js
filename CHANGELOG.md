@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.1.8](https://github.com/Aleph-Alpha/responses.js/compare/v1.1.7...v1.1.8) (2026-09-03)
+
+
+### Bug Fixes
+
+* bump fast-uri to &gt;=4.1.3 and qs to &gt;=6.16.0 for CVEs ([36b7a4f](https://github.com/Aleph-Alpha/responses.js/commit/36b7a4f77cfd2a740eac874b1f9e8eb5e1ef55c3))
+* bump fast-uri to &gt;=4.1.3 and qs to &gt;=6.16.0 for CVEs ([#99](https://github.com/Aleph-Alpha/responses.js/issues/99)) ([28bd1fd](https://github.com/Aleph-Alpha/responses.js/commit/28bd1fd9076f28ab5247636cd6344a4da98b8def))
+
+
+### Dependencies
+
+* **deps-dev:** bump @humanfs/node from 0.16.6 to 0.16.8 in /demo ([#97](https://github.com/Aleph-Alpha/responses.js/issues/97)) ([11fa68f](https://github.com/Aleph-Alpha/responses.js/commit/11fa68f8bd02b6543a3527d2b19f7d6a5d4274bf))
+* **deps-dev:** bump browserslist from 4.28.6 to 4.28.8 in /demo ([#98](https://github.com/Aleph-Alpha/responses.js/issues/98)) ([50f7104](https://github.com/Aleph-Alpha/responses.js/commit/50f7104650ba694aac5d951f2f82356ae7221c7c))
+
 ## [1.1.7](https://github.com/Aleph-Alpha/responses.js/compare/v1.1.6...v1.1.7) (2026-08-18)
 
 
