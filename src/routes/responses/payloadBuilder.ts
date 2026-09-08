@@ -1,4 +1,5 @@
-import type { ChatCompletionCreateParamsStreaming, ChatCompletionTool } from "openai/resources/chat/completions.js";
+import type { PatchedChatCompletionCreateParamsStreaming } from "../../openai_patch.js";
+import type { ChatCompletionTool } from "openai/resources/chat/completions.js";
 import type { CreateResponseParams } from "../../schemas.js";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions.js";
 
@@ -6,7 +7,7 @@ export function buildLLMPayload(
 	body: CreateResponseParams,
 	messages: ChatCompletionMessageParam[],
 	tools: ChatCompletionTool[] | undefined
-): ChatCompletionCreateParamsStreaming {
+): PatchedChatCompletionCreateParamsStreaming {
 	return {
 		// main params
 		model: body.model,

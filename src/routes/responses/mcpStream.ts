@@ -1,4 +1,4 @@
-import type { ChatCompletionCreateParamsStreaming } from "openai/resources/chat/completions.js";
+import type { PatchedChatCompletionCreateParamsStreaming } from "../../openai_patch.js";
 import type { ResponseOutputItem } from "openai/resources/responses/responses";
 import type { PatchedResponseStreamEvent } from "../../openai_patch";
 import type { McpServerParams, McpApprovalRequestParams } from "../../schemas.js";
@@ -105,7 +105,7 @@ export async function* callApprovedMCPToolStream(
 	approvalRequest: McpApprovalRequestParams | undefined,
 	mcpToolsMapping: Map<string, McpServerParams>,
 	responseObject: IncompleteResponse,
-	payload: ChatCompletionCreateParamsStreaming,
+	payload: PatchedChatCompletionCreateParamsStreaming,
 	traceContext: Context,
 	log: Logger
 ): AsyncGenerator<PatchedResponseStreamEvent> {
