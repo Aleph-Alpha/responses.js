@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0](https://github.com/Aleph-Alpha/responses.js/compare/v1.1.8...v1.2.0) (2026-09-08)
+
+
+### Features
+
+* accept reasoning effort none ([#101](https://github.com/Aleph-Alpha/responses.js/issues/101)) ([5a26ca6](https://github.com/Aleph-Alpha/responses.js/commit/5a26ca63c11e43791e4654dbcef30e74b15227f6))
+
 ## [1.1.8](https://github.com/Aleph-Alpha/responses.js/compare/v1.1.7...v1.1.8) (2026-09-03)
 
 
