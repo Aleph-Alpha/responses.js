@@ -1,3 +1,4 @@
+import type { PatchedChatCompletionCreateParamsStreaming } from "../../openai_patch.js";
 import type { ValidatedRequest } from "../../middleware/validation.js";
 import type { CreateResponseParams, McpServerParams, McpApprovalRequestParams } from "../../schemas.js";
 import type { ChatCompletionTool } from "openai/resources/chat/completions.js";
@@ -6,7 +7,6 @@ import type { ResponseOutputItem } from "openai/resources/responses/responses";
 import type { PatchedResponseStreamEvent } from "../../openai_patch";
 import type { Attributes, Context } from "@opentelemetry/api";
 import type { Logger } from "pino";
-import type { ChatCompletionCreateParamsStreaming } from "openai/resources/chat/completions.js";
 import { type IncompleteResponse, tracer, OTEL_GENAI_CAPTURE_TOOL_CONTENT } from "./types.js";
 import { NOT_FORWARDED_HEADERS, buildJsonAttribute } from "./utils.js";
 import { config } from "../../lib/config.js";
@@ -259,7 +259,7 @@ async function* prepareToolsAndTraceStream(
 
 async function* agenticLoop(
 	apiKey: string,
-	payload: ChatCompletionCreateParamsStreaming,
+	payload: PatchedChatCompletionCreateParamsStreaming,
 	responseObject: IncompleteResponse,
 	mcpToolsMapping: Map<string, McpServerParams>,
 	defaultHeaders: Record<string, string>,

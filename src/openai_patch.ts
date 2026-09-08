@@ -9,7 +9,7 @@ import type {
 	ResponseOutputText,
 } from "openai/resources/responses/responses";
 
-import type { ChatCompletionChunk } from "openai/resources/chat/completions";
+import type { ChatCompletionChunk, ChatCompletionCreateParamsStreaming } from "openai/resources/chat/completions";
 export interface ReasoningTextContent {
 	type: "reasoning_text";
 	text: string;
@@ -103,4 +103,16 @@ export type PatchedResponseContentPart = ResponseOutputText | ResponseOutputRefu
 export type PatchedDeltaWithReasoning = ChatCompletionChunk.Choice.Delta & {
 	reasoning?: string;
 	reasoning_content?: string;
+};
+
+/*
+ * The Responses API accepts a reasoning effort of "none", but the openai SDK
+ * type for chat completions does not include it yet. This type widens
+ * `reasoning_effort` so the value passes through to the backend unchanged.
+ */
+export type PatchedChatCompletionCreateParamsStreaming = Omit<
+	ChatCompletionCreateParamsStreaming,
+	"reasoning_effort"
+> & {
+	reasoning_effort?: ChatCompletionCreateParamsStreaming["reasoning_effort"] | "none";
 };

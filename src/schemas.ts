@@ -163,7 +163,7 @@ export const createResponseParamsSchema = z.object({
 	// previous_response_id: z.string().nullable().default(null),
 	reasoning: z
 		.object({
-			effort: z.enum(["low", "medium", "high"]).default("medium"),
+			effort: z.enum(["none", "low", "medium", "high"]).default("medium"),
 			summary: z.enum(["auto", "concise", "detailed"]).nullable().default(null),
 		})
 		.optional(),

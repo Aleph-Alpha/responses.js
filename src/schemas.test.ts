@@ -211,6 +211,14 @@ describe("createResponseParamsSchema", () => {
 		expect(result.reasoning?.summary).toBe("detailed");
 	});
 
+	it("accepts reasoning effort none", () => {
+		const result = createResponseParamsSchema.parse({
+			...minimalValid,
+			reasoning: { effort: "none" },
+		});
+		expect(result.reasoning?.effort).toBe("none");
+	});
+
 	it("defaults omitted reasoning summary to null", () => {
 		const result = createResponseParamsSchema.parse({
 			...minimalValid,

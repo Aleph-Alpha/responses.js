@@ -125,6 +125,15 @@ describe("buildLLMPayload", () => {
 		expect(payload.reasoning_effort).toBe("high");
 	});
 
+	it("passes reasoning_effort none from body", () => {
+		const body: CreateResponseParams = {
+			...baseBody,
+			reasoning: { effort: "none" as const, summary: null },
+		};
+		const payload = buildLLMPayload(body, messages, undefined);
+		expect(payload.reasoning_effort).toBe("none");
+	});
+
 	it("sets temperature and top_p", () => {
 		const payload = buildLLMPayload(baseBody, messages, undefined);
 		expect(payload.temperature).toBe(0.7);

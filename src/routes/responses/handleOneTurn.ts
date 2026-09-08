@@ -1,6 +1,7 @@
+import type { PatchedChatCompletionCreateParamsStreaming } from "../../openai_patch.js";
+import type { ChatCompletionCreateParamsStreaming } from "openai/resources/chat/completions.js";
 import { OpenAI } from "openai";
 import { Agent } from "undici";
-import type { ChatCompletionCreateParamsStreaming } from "openai/resources/chat/completions.js";
 import type { PatchedResponseStreamEvent } from "../../openai_patch";
 import type { McpServerParams } from "../../schemas.js";
 import type { Context } from "@opentelemetry/api";
@@ -26,7 +27,7 @@ const sharedDispatcher = new Agent({
  */
 export async function* handleOneTurnStream(
 	apiKey: string | undefined,
-	payload: ChatCompletionCreateParamsStreaming,
+	payload: PatchedChatCompletionCreateParamsStreaming,
 	responseObject: IncompleteResponse,
 	mcpToolsMapping: Map<string, McpServerParams>,
 	defaultHeaders: Record<string, string>,
@@ -66,7 +67,9 @@ export async function* handleOneTurnStream(
 	const modelCallStart = performance.now();
 	let modelCallStatusCode = 200;
 	try {
-		const stream = await client.chat.completions.create(payload, {
+		// The payload can carry `reasoning_effort: "none"`, which the openai SDK
+		// types do not allow yet. The cast sends the value to the backend unchanged.
+		const stream = await client.chat.completions.create(payload as ChatCompletionCreateParamsStreaming, {
 			signal: signal
 				? AbortSignal.any([signal, AbortSignal.timeout(config.llmRequestTimeoutMs)])
 				: AbortSignal.timeout(config.llmRequestTimeoutMs),
