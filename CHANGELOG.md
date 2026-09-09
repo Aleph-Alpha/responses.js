@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1](https://github.com/Aleph-Alpha/responses.js/compare/v1.2.0...v1.2.1) (2026-09-09)
+
+
+### Bug Fixes
+
+* bump hono override and vitest for CVEs ([#103](https://github.com/Aleph-Alpha/responses.js/issues/103)) ([c694813](https://github.com/Aleph-Alpha/responses.js/commit/c6948135a890baab791a470da58a912ed9549013))
+
 ## [1.2.0](https://github.com/Aleph-Alpha/responses.js/compare/v1.1.8...v1.2.0) (2026-09-08)
 
 
