@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.2](https://github.com/Aleph-Alpha/responses.js/compare/v1.2.1...v1.2.2) (2026-09-15)
+
+
+### Dependencies
+
+* **deps:** bump sharp from 0.35.3 to 0.35.4 in /demo ([#105](https://github.com/Aleph-Alpha/responses.js/issues/105)) ([82f2e62](https://github.com/Aleph-Alpha/responses.js/commit/82f2e62935a5fbf1da370522853862a624e609b1))
+
 ## [1.2.1](https://github.com/Aleph-Alpha/responses.js/compare/v1.2.0...v1.2.1) (2026-09-09)
 
 
