@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.2.2](https://github.com/Aleph-Alpha/responses.js/compare/v1.2.1...v1.2.2) (2026-09-29)
+
+
+### Bug Fixes
+
+* bump undici and ip-address override for CVEs ([#110](https://github.com/Aleph-Alpha/responses.js/issues/110)) ([928e800](https://github.com/Aleph-Alpha/responses.js/commit/928e80086018079fc3d7392ea5941390c16664db))
+
+
+### Dependencies
+
+* **deps:** bump nanoid from 3.3.16 to 3.3.19 in /demo ([#108](https://github.com/Aleph-Alpha/responses.js/issues/108)) ([867ce08](https://github.com/Aleph-Alpha/responses.js/commit/867ce0835ee2226f2af0f5c6825aec1165b442f8))
+* **deps:** bump next from 16.3.0 to 16.3.3 in /demo ([#106](https://github.com/Aleph-Alpha/responses.js/issues/106)) ([53fad37](https://github.com/Aleph-Alpha/responses.js/commit/53fad37e9b9a00cacc4010ebba38f206cf2afcb1))
+* **deps:** bump sharp from 0.35.3 to 0.35.4 in /demo ([#105](https://github.com/Aleph-Alpha/responses.js/issues/105)) ([82f2e62](https://github.com/Aleph-Alpha/responses.js/commit/82f2e62935a5fbf1da370522853862a624e609b1))
+
 ## [1.2.1](https://github.com/Aleph-Alpha/responses.js/compare/v1.2.0...v1.2.1) (2026-09-09)
 
 
