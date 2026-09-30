@@ -18,7 +18,7 @@
 			"flatted": ">=3.4.2",
 			"picomatch": ">=4.0.4",
 			"yaml": ">=2.8.3",
-			"brace-expansion": ">=5.0.9",
+			"brace-expansion": ">=5.0.11",
 			"path-to-regexp": ">=8.4.0",
 			"express>path-to-regexp": "0.1.13",
 			"vite": ">=8.0.16",
@@ -26,7 +26,7 @@
 			"ip-address": ">=10.5.1",
 			"ws": ">=8.20.1",
 			"esbuild": ">=0.28.1",
-			"js-yaml": ">=5.2.2",
+			"js-yaml": ">=5.4.1",
 			"nanoid": ">=3.3.18"
 		},
 		"ignoredBuiltDependencies": [
