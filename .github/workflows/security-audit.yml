@@ -37,19 +37,21 @@ jobs:
           echo "Running pnpm audit..."
           pnpm audit --audit-level=moderate --json > audit-results.json || true
 
-          # Check for high or critical vulnerabilities
+          # Check for moderate, high, or critical vulnerabilities
           CRITICAL=$(jq '.metadata.vulnerabilities.critical // 0' audit-results.json)
           HIGH=$(jq '.metadata.vulnerabilities.high // 0' audit-results.json)
+          MODERATE=$(jq '.metadata.vulnerabilities.moderate // 0' audit-results.json)
 
           echo "Critical vulnerabilities: $CRITICAL"
           echo "High vulnerabilities: $HIGH"
+          echo "Moderate vulnerabilities: $MODERATE"
 
-          if [ "$CRITICAL" -gt 0 ] || [ "$HIGH" -gt 0 ]; then
-            echo "❌ Security audit failed: Found $CRITICAL critical and $HIGH high vulnerabilities"
-            pnpm audit --audit-level=high
+          if [ "$CRITICAL" -gt 0 ] || [ "$HIGH" -gt 0 ] || [ "$MODERATE" -gt 0 ]; then
+            echo "❌ Security audit failed: Found $CRITICAL critical, $HIGH high and $MODERATE moderate vulnerabilities"
+            pnpm audit --audit-level=moderate
             exit 1
           else
-            echo "✅ Security audit passed: No critical or high vulnerabilities"
+            echo "✅ Security audit passed: No moderate, high or critical vulnerabilities"
           fi
 
       - name: Upload audit results
@@ -103,7 +105,7 @@ jobs:
       - name: Dependency Review
         uses: actions/dependency-review-action@v4
         with:
-          fail-on-severity: high
+          fail-on-severity: moderate
           deny-licenses: GPL-3.0, AGPL-3.0
           comment-summary-in-pr: always
 
@@ -124,7 +126,7 @@ jobs:
           image-ref: "responses-js:${{ github.sha }}"
           format: "sarif"
           output: "trivy-results.sarif"
-          severity: "CRITICAL,HIGH"
+          severity: "CRITICAL,HIGH,MEDIUM"
 
       - name: Upload Trivy results to GitHub Security
         uses: github/codeql-action/upload-sarif@v3
