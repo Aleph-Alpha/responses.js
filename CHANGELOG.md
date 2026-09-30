@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.2.3](https://github.com/Aleph-Alpha/responses.js/compare/v1.2.2...v1.2.3) (2026-09-30)
+
+
+### Bug Fixes
+
+* bump fast-uri dep ([#111](https://github.com/Aleph-Alpha/responses.js/issues/111)) ([e5bd0c0](https://github.com/Aleph-Alpha/responses.js/commit/e5bd0c021e43bf518a49d4f958a4764fa0a5954e))
+
+
+### Dependencies
+
+* **deps:** bump brace-expansion in /demo ([#114](https://github.com/Aleph-Alpha/responses.js/issues/114)) ([2df3983](https://github.com/Aleph-Alpha/responses.js/commit/2df39839855869ab1bf2604aa5d9e4fe61fae35d))
+
 ## [1.2.2](https://github.com/Aleph-Alpha/responses.js/compare/v1.2.1...v1.2.2) (2026-09-29)
 
 
