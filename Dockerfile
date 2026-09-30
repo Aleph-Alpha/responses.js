@@ -11,7 +11,7 @@ ENV HOME=/home/node \
 WORKDIR $HOME/app
 
 # Install dependencies and build
-COPY --chown=node package.json pnpm-lock.yaml* ./
+COPY --chown=node package.json pnpm-lock.yaml* pnpm-workspace.yaml ./
 COPY --chown=node tsconfig.json ./
 COPY --chown=node src ./src
 RUN pnpm install --frozen-lockfile
