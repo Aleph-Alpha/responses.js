@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.2.4](https://github.com/Aleph-Alpha/responses.js/compare/v1.2.3...v1.2.4) (2026-10-06)
+
+
+### Bug Fixes
+
+* override proxy-addr, source-map-js, fast-copy for CVEs ([#116](https://github.com/Aleph-Alpha/responses.js/issues/116)) ([417e6cf](https://github.com/Aleph-Alpha/responses.js/commit/417e6cfd075b68a446a508cb6252783a5f9c360a))
+
+
+### Dependencies
+
+* **deps:** bump katex from 0.16.22 to 0.18.2 in /demo ([#118](https://github.com/Aleph-Alpha/responses.js/issues/118)) ([8f76422](https://github.com/Aleph-Alpha/responses.js/commit/8f76422378729d943a1a029726f025ea04dc50da))
+* **deps:** bump next from 16.3.3 to 16.3.6 in /demo ([#115](https://github.com/Aleph-Alpha/responses.js/issues/115)) ([03f745f](https://github.com/Aleph-Alpha/responses.js/commit/03f745fd1f07eb4e76e5f053d51a247871a5898d))
+* **deps:** bump postcss-selector-parser and tailwindcss in /demo ([#120](https://github.com/Aleph-Alpha/responses.js/issues/120)) ([64f221a](https://github.com/Aleph-Alpha/responses.js/commit/64f221ae4c8bd8c7c01d2a471ae0606d3523b449))
+* **deps:** bump source-map-js from 1.2.1 to 1.2.2 in /demo ([#119](https://github.com/Aleph-Alpha/responses.js/issues/119)) ([63eed39](https://github.com/Aleph-Alpha/responses.js/commit/63eed3977d9753ef5f38340dbd32714613351e2b))
+
 ## [1.2.3](https://github.com/Aleph-Alpha/responses.js/compare/v1.2.2...v1.2.3) (2026-09-30)
 
 
