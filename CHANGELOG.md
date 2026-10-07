@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.3.0](https://github.com/Aleph-Alpha/responses.js/compare/v1.2.4...v1.3.0) (2026-10-07)
+
+
+### Features
+
+* leave top_p to be decided by default values ([#121](https://github.com/Aleph-Alpha/responses.js/issues/121)) ([bb2f161](https://github.com/Aleph-Alpha/responses.js/commit/bb2f1619c8751adc98d6f774edd4e7cbbdb71c12))
+
+
+### Bug Fixes
+
+* up our audit to look for medium level ([#112](https://github.com/Aleph-Alpha/responses.js/issues/112)) ([8b362bd](https://github.com/Aleph-Alpha/responses.js/commit/8b362bd7a85e306f336fc0ba3b0916186cd7eaa1))
+
 ## [1.2.4](https://github.com/Aleph-Alpha/responses.js/compare/v1.2.3...v1.2.4) (2026-10-06)
 
 
