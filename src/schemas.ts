@@ -217,7 +217,7 @@ export const createResponseParamsSchema = z.object({
 		)
 		.optional(),
 	// top_logprobs: z.number().min(0).max(20).nullable().default(null),
-	top_p: z.number().min(0).max(1).default(1),
+	top_p: z.number().min(0).max(1).nullable().default(null),
 	// truncation: z.enum(["auto", "disabled"]).default("disabled"),
 	// user
 });

@@ -17,7 +17,7 @@ describe("createResponseParamsSchema", () => {
 		const result = createResponseParamsSchema.parse(minimalValid);
 		expect(result.stream).toBe(false);
 		expect(result.temperature).toBe(1);
-		expect(result.top_p).toBe(1);
+		expect(result.top_p).toBeNull();
 		expect(result.instructions).toBeNull();
 		expect(result.max_output_tokens).toBeNull();
 		expect(result.metadata).toBeNull();
