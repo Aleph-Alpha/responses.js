@@ -444,7 +444,7 @@ describe("formatInputToMessages", () => {
 		]);
 	});
 
-	it("maps mcp_call to tool message", () => {
+	it("maps mcp_call to tool message with a model-native tool call id", () => {
 		const result = formatInputToMessages(
 			[
 				{
@@ -463,7 +463,7 @@ describe("formatInputToMessages", () => {
 				role: "assistant",
 				tool_calls: [
 					{
-						id: "mcp_123",
+						id: "functions.tool1:0",
 						type: "function",
 						function: {
 							name: "tool1",
@@ -475,8 +475,45 @@ describe("formatInputToMessages", () => {
 			{
 				role: "tool",
 				content: "result",
-				tool_call_id: "mcp_123",
+				tool_call_id: "functions.tool1:0",
 			},
+		]);
+	});
+
+	it("numbers mcp_call tool call ids by their position among all tool calls", () => {
+		const result = formatInputToMessages(
+			[
+				{ type: "function_call" as const, call_id: "functions.client_fn:0", name: "client_fn", arguments: "{}" },
+				{ type: "function_call_output" as const, call_id: "functions.client_fn:0", output: "ok" },
+				{
+					type: "mcp_call" as const,
+					id: "mcp_aaa",
+					name: "create",
+					server_label: "sandbox",
+					arguments: "{}",
+					output: "sb-1",
+				},
+				{
+					type: "mcp_call" as const,
+					id: "mcp_bbb",
+					name: "write_files",
+					server_label: "sandbox",
+					arguments: "{}",
+					output: "written",
+				},
+			],
+			null
+		);
+		const ids = result.flatMap((m) =>
+			"tool_calls" in m && m.tool_calls ? m.tool_calls.map((c) => c.id) : "tool_call_id" in m ? [m.tool_call_id] : []
+		);
+		expect(ids).toEqual([
+			"functions.client_fn:0",
+			"functions.client_fn:0",
+			"functions.create:1",
+			"functions.create:1",
+			"functions.write_files:2",
+			"functions.write_files:2",
 		]);
 	});
 

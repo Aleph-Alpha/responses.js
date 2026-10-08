@@ -197,6 +197,8 @@ export function formatInputToMessages(
 	}
 
 	let pending: PendingAssistant | null = null;
+	// Counts tool calls in input order. It numbers the ids of replayed mcp_call items.
+	let toolCallIndex = 0;
 
 	for (const item of input) {
 		switch (item.type) {
@@ -207,6 +209,7 @@ export function formatInputToMessages(
 				if (pending === null) {
 					pending = makePendingAssistant(null);
 				}
+				toolCallIndex++;
 				pending.toolCalls.push({
 					id: item.call_id,
 					type: "function",
@@ -275,11 +278,15 @@ export function formatInputToMessages(
 			case "mcp_call": {
 				pending = flushPendingAssistant(pending, messages);
 				if (item.output !== null) {
+					// Use the "functions.<name>:<index>" id form, not the mcp_ item id.
+					// Some chat templates (Kimi K2) show the id to the model verbatim.
+					// The model then copies an mcp_ id into the name of its next call.
+					const toolCallId = `functions.${item.name}:${toolCallIndex++}`;
 					messages.push({
 						role: "assistant",
 						tool_calls: [
 							{
-								id: item.id,
+								id: toolCallId,
 								type: "function",
 								function: {
 									name: item.name,
@@ -291,7 +298,7 @@ export function formatInputToMessages(
 					messages.push({
 						role: "tool",
 						content: item.output,
-						tool_call_id: item.id,
+						tool_call_id: toolCallId,
 					});
 				}
 				break;
