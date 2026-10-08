@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.3.1](https://github.com/Aleph-Alpha/responses.js/compare/v1.3.0...v1.3.1) (2026-10-08)
+
+
+### Bug Fixes
+
+* give replayed mcp_call items a model-native tool call id ([#124](https://github.com/Aleph-Alpha/responses.js/issues/124)) ([34ce075](https://github.com/Aleph-Alpha/responses.js/commit/34ce0750d31737d78d2fc4202ebf0eab44e884a1))
+
+
+### Dependencies
+
+* **deps:** bump next from 16.3.6 to 16.3.8 in /demo ([#126](https://github.com/Aleph-Alpha/responses.js/issues/126)) ([62d1567](https://github.com/Aleph-Alpha/responses.js/commit/62d1567792ee9166c7aa23ebc94e249464c55757))
+* **deps:** bump sharp from 0.35.4 to 0.35.5 in /demo ([#123](https://github.com/Aleph-Alpha/responses.js/issues/123)) ([e110826](https://github.com/Aleph-Alpha/responses.js/commit/e1108263c3016546bffeb131e1bc58ea35e13696))
+
 ## [1.3.0](https://github.com/Aleph-Alpha/responses.js/compare/v1.2.4...v1.3.0) (2026-10-07)
 
 
