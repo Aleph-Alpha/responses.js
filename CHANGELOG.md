@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.2](https://github.com/Aleph-Alpha/responses.js/compare/v1.3.1...v1.3.2) (2026-10-21)
+
+
+### Bug Fixes
+
+* security updates ([#127](https://github.com/Aleph-Alpha/responses.js/issues/127)) ([4fe5232](https://github.com/Aleph-Alpha/responses.js/commit/4fe523273d478a675f4fa7284f4f22ac29e12387))
+
 ## [1.3.1](https://github.com/Aleph-Alpha/responses.js/compare/v1.3.0...v1.3.1) (2026-10-08)
 
 
