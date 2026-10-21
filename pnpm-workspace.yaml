@@ -2,7 +2,7 @@ overrides:
   body-parser: ">=2.2.2"
   qs: ">=6.16.0"
   diff: ">=8.0.3"
-  hono: ">=4.13.5"
+  hono: ">=4.13.11"
   express-rate-limit: ">=8.2.2"
   "@hono/node-server": ">=2.0.10"
   minimatch: ">=10.2.3"
@@ -16,7 +16,7 @@ overrides:
   brace-expansion: ">=5.0.12"
   path-to-regexp: ">=8.4.0"
   express>path-to-regexp: 0.1.13
-  vite: ">=8.0.16"
+  vite: ">=8.1.6"
   postcss: ">=8.5.18"
   ip-address: ">=10.5.1"
   ws: ">=8.20.1"
