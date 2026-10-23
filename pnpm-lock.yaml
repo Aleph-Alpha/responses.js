@@ -24,7 +24,7 @@ overrides:
   express>path-to-regexp: 0.1.13
   vite: '>=8.1.6'
   postcss: '>=8.5.18'
-  ip-address: '>=10.5.1'
+  ip-address: '>=10.7.4'
   proxy-addr: '>=2.0.8'
   source-map-js: '>=1.2.2'
   fast-copy: '>=4.1.0'
@@ -1495,8 +1495,8 @@ packages:
     resolution: {integrity: sha512-IBTdIkzZNOpqm7q3dRqJvMaldXjDHWkEDfrwGEQTs5eaQMWV+djAhR+wahyNNMAa+qpbDUhBMVt4ZKNwpPm7xQ==}
     engines: {node: ^20.17.0 || >=22.9.0}
 
-  ip-address@10.7.2:
-    resolution: {integrity: sha512-7H/2gFSIitxc0hG3nOI1glS8QLo/EHBFFLk8vEUjXY/xu0AdL8jZ9U1IzO2PUm0d2D/ofQcAifb0g6OBkt8U7w==}
+  ip-address@10.7.4:
+    resolution: {integrity: sha512-DWBMKyeM25D70nrIiTkgQth59/G+naKOTep6huF9j+GmeK3DMD60Zvxg5d5qQnz+38AHgou6ean2LECX+lrKDg==}
     engines: {node: '>= 12'}
 
   ipaddr.js@1.9.1:
@@ -3521,7 +3521,7 @@ snapshots:
   express-rate-limit@8.5.2(express@5.2.1):
     dependencies:
       express: 5.2.1
-      ip-address: 10.7.2
+      ip-address: 10.7.4
 
   express@4.22.2:
     dependencies:
@@ -3769,7 +3769,7 @@ snapshots:
 
   ini@6.0.0: {}
 
-  ip-address@10.7.2: {}
+  ip-address@10.7.4: {}
 
   ipaddr.js@1.9.1: {}
 

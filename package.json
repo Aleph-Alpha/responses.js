@@ -23,7 +23,7 @@
 			"express>path-to-regexp": "0.1.13",
 			"vite": ">=8.1.6",
 			"postcss": ">=8.5.18",
-			"ip-address": ">=10.5.1",
+			"ip-address": ">=10.7.4",
 			"proxy-addr": ">=2.0.8",
 			"source-map-js": ">=1.2.2",
 			"fast-copy": ">=4.1.0",
