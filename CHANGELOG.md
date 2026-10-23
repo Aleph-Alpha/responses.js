@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.3.3](https://github.com/Aleph-Alpha/responses.js/compare/v1.3.2...v1.3.3) (2026-10-23)
+
+
+### Bug Fixes
+
+* make chore PR types also trigger releases ([#130](https://github.com/Aleph-Alpha/responses.js/issues/130)) ([02723c8](https://github.com/Aleph-Alpha/responses.js/commit/02723c8b240adda9ae3a4488227bb680efd62b45))
+
+
+### Miscellaneous Chores
+
+* bump ip-address to cover CVE-2026-111997 ([#129](https://github.com/Aleph-Alpha/responses.js/issues/129)) ([08c990e](https://github.com/Aleph-Alpha/responses.js/commit/08c990e74499f0f0280e36aacf41ef2c541d3408))
+
 ## [1.3.2](https://github.com/Aleph-Alpha/responses.js/compare/v1.3.1...v1.3.2) (2026-10-21)
 
 
