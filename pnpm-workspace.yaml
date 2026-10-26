@@ -1,5 +1,5 @@
 overrides:
-  body-parser: ">=2.2.2"
+  body-parser: ">=2.4.0"
   qs: ">=6.16.0"
   diff: ">=8.0.3"
   hono: ">=4.13.11"
@@ -7,9 +7,9 @@ overrides:
   "@hono/node-server": ">=2.0.10"
   minimatch: ">=10.2.3"
   "@modelcontextprotocol/sdk>ajv": ">=8.18.0"
-  fast-uri: ">=4.1.5"
+  fast-uri: ">=4.2.3"
   rollup: ">=4.59.0"
-  serialize-javascript: ">=7.0.5"
+  serialize-javascript: ">=7.1.3"
   flatted: ">=3.4.2"
   picomatch: ">=4.0.4"
   yaml: ">=2.8.3"
