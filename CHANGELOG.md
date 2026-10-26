@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.3.4](https://github.com/Aleph-Alpha/responses.js/compare/v1.3.3...v1.3.4) (2026-10-26)
+
+
+### Dependencies
+
+* **deps:** bump next from 16.3.8 to 16.4.1 in /demo ([#132](https://github.com/Aleph-Alpha/responses.js/issues/132)) ([c97706b](https://github.com/Aleph-Alpha/responses.js/commit/c97706b29b2014718eabd5190eb0ef4186d472a8))
+
+
+### Miscellaneous Chores
+
+* security fixes ([#133](https://github.com/Aleph-Alpha/responses.js/issues/133)) ([e4a8ac7](https://github.com/Aleph-Alpha/responses.js/commit/e4a8ac7b0f990d94f3f4d2c907cd5056620ef22a))
+
 ## [1.3.3](https://github.com/Aleph-Alpha/responses.js/compare/v1.3.2...v1.3.3) (2026-10-23)
 
 
