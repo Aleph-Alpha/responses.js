@@ -39,7 +39,7 @@ const mcpServerParamsSchema = z.object({
 		])
 		.nullable()
 		.default(null),
-	headers: z.record(z.string()).nullable().default(null),
+	headers: z.record(z.string(), z.string()).nullable().default(null),
 	require_approval: z
 		.union([
 			z.enum(["always", "never"]),
@@ -102,8 +102,8 @@ export const createResponseParamsSchema = z.object({
 							z.object({
 								type: z.literal("output_text"),
 								text: z.string(),
-								annotations: z.array(z.record(z.any())).nullable().optional(), // TODO: incomplete
-								logprobs: z.array(z.record(z.any())).nullable().optional(), // TODO: incomplete
+								annotations: z.array(z.record(z.string(), z.any())).nullable().optional(), // TODO: incomplete
+								logprobs: z.array(z.record(z.string(), z.any())).nullable().optional(), // TODO: incomplete
 							}),
 							z.object({
 								type: z.literal("refusal"),
@@ -135,7 +135,7 @@ export const createResponseParamsSchema = z.object({
 					tools: z.array(
 						z.object({
 							name: z.string(),
-							input_schema: z.record(z.any()),
+							input_schema: z.record(z.string(), z.any()),
 							description: z.string().nullable().optional(),
 							annotations: z.object({}).optional(),
 						})
@@ -186,7 +186,7 @@ export const createResponseParamsSchema = z.object({
 						.max(64, "Must be at most 64 characters")
 						.regex(/^[a-zA-Z0-9_-]+$/, "Only letters, numbers, underscores, and dashes are allowed"),
 					description: z.string().optional(),
-					schema: z.record(z.any()),
+					schema: z.record(z.string(), z.any()),
 					strict: z.boolean().default(false),
 				}),
 			]),
@@ -207,7 +207,7 @@ export const createResponseParamsSchema = z.object({
 			z.union([
 				z.object({
 					name: z.string(),
-					parameters: z.record(z.any()),
+					parameters: z.record(z.string(), z.any()),
 					strict: z.boolean().default(false),
 					type: z.literal("function"),
 					description: z.string().optional(),

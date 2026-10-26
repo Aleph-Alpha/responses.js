@@ -28,11 +28,11 @@ export function validateBody<T extends z.ZodTypeAny>(schema: T) {
 			next();
 		} catch (error) {
 			if (error instanceof z.ZodError) {
-				req.log.warn({ validation_errors: error.errors }, "Request validation failed");
+				req.log.warn({ validation_errors: error.issues }, "Request validation failed");
 				res.status(400).json({
 					success: false,
-					error: error.errors,
-					details: error.errors,
+					error: error.issues,
+					details: error.issues,
 				});
 			} else {
 				req.log.error({ err: error }, "Unexpected validation error");
