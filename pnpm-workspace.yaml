@@ -1,6 +1,6 @@
 overrides:
   body-parser: ">=2.4.0"
-  qs: ">=6.16.0"
+  qs: ">=6.16.1"
   diff: ">=8.0.3"
   hono: ">=4.13.11"
   express-rate-limit: ">=8.2.2"
