@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.3.5](https://github.com/Aleph-Alpha/responses.js/compare/v1.3.4...v1.3.5) (2026-10-28)
+
+
+### Bug Fixes
+
+* sec fixes ([#137](https://github.com/Aleph-Alpha/responses.js/issues/137)) ([c7f8f8b](https://github.com/Aleph-Alpha/responses.js/commit/c7f8f8b7cfbf62efbcbe05f69cb29b0abe693152))
+
+
+### Dependencies
+
+* **deps:** bump zod and openai in /demo ([#135](https://github.com/Aleph-Alpha/responses.js/issues/135)) ([1c77e13](https://github.com/Aleph-Alpha/responses.js/commit/1c77e139eca1ce8a22bbf648e14708b40fcdc79c))
+
 ## [1.3.4](https://github.com/Aleph-Alpha/responses.js/compare/v1.3.3...v1.3.4) (2026-10-26)
 
 
