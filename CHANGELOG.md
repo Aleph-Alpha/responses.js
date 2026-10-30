@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.6](https://github.com/Aleph-Alpha/responses.js/compare/v1.3.5...v1.3.6) (2026-10-30)
+
+
+### Bug Fixes
+
+* bump @hono/node-server override for CVE-2026-118663 ([#138](https://github.com/Aleph-Alpha/responses.js/issues/138)) ([b069a82](https://github.com/Aleph-Alpha/responses.js/commit/b069a8220f3b36f08fda06a3e9dd95c3c74c991d))
+
 ## [1.3.5](https://github.com/Aleph-Alpha/responses.js/compare/v1.3.4...v1.3.5) (2026-10-28)
 
 
