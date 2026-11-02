@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.3.7](https://github.com/Aleph-Alpha/responses.js/compare/v1.3.6...v1.3.7) (2026-11-02)
+
+
+### Bug Fixes
+
+* bump minimatch and glob overrides for CVEs ([#141](https://github.com/Aleph-Alpha/responses.js/issues/141)) ([ee97778](https://github.com/Aleph-Alpha/responses.js/commit/ee9777828c2d9d161e79a6cc94a593772926bd65))
+* cve 2026-118663 ([#140](https://github.com/Aleph-Alpha/responses.js/issues/140)) ([8178c70](https://github.com/Aleph-Alpha/responses.js/commit/8178c70d19e6f62074fa40969ea8058e4157feb0))
+
 ## [1.3.6](https://github.com/Aleph-Alpha/responses.js/compare/v1.3.5...v1.3.6) (2026-10-30)
 
 
