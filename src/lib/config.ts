@@ -100,4 +100,11 @@ export const config = {
 	otelDisabled: parseBoolEnv("OTEL_DISABLED", false),
 	/** Capture tool arguments/results in GenAI spans */
 	otelGenaiCaptureToolContent: parseBoolEnv("OTEL_GENAI_CAPTURE_TOOL_CONTENT", false),
+	/**
+	 * Record token usage on the gen_ai.chat span and type it as a Langfuse
+	 * generation. Set to false when a caller records usage itself (Stateful
+	 * Responses does), so each model call is counted once. The Responses API
+	 * output reports usage either way.
+	 */
+	otelGenaiRecordUsage: parseBoolEnv("OTEL_GENAI_RECORD_USAGE", true),
 } as const;

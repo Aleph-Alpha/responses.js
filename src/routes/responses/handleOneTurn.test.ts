@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // Mock OpenAI — must be a class so `new OpenAI(...)` works
 const mockCreate = vi.fn();
@@ -58,6 +58,7 @@ vi.mock("../../mcp.js", () => ({
 }));
 
 import { handleOneTurnStream } from "./handleOneTurn.js";
+import { config } from "../../lib/config.js";
 import {
 	createMockResponseObject,
 	createMockLogger,
@@ -422,6 +423,44 @@ describe("handleOneTurnStream", () => {
 			);
 
 			expect(usageAttributeCalls()).toEqual([]);
+		});
+
+		describe("with OTEL_GENAI_RECORD_USAGE=false (a caller such as Stateful Responses owns usage)", () => {
+			const mutableConfig = config as { otelGenaiRecordUsage: boolean };
+
+			beforeEach(() => {
+				mutableConfig.otelGenaiRecordUsage = false;
+			});
+
+			afterEach(() => {
+				mutableConfig.otelGenaiRecordUsage = true;
+			});
+
+			it("types the model call span as a plain span", async () => {
+				mockCreate.mockResolvedValue(createMockStream([createTextChunk("Hi"), createUsageChunk(10, 5)]));
+
+				await collectEvents(
+					handleOneTurnStream("key", { ...basePayload }, createMockResponseObject(), new Map(), {}, traceContext, log)
+				);
+
+				const [name, options] = tracer().startSpan.mock.calls[0];
+				expect(name).toBe("gen_ai.chat");
+				expect(options.attributes["langfuse.observation.type"]).toBe("span");
+			});
+
+			it("sets no usage on the span but still reports it, with reasoning tokens, in the response", async () => {
+				mockCreate.mockResolvedValue(createMockStream([createTextChunk("Hi"), createUsageChunk(10, 5, 3)]));
+				const responseObject = createMockResponseObject();
+
+				await collectEvents(
+					handleOneTurnStream("key", { ...basePayload }, responseObject, new Map(), {}, traceContext, log)
+				);
+
+				expect(usageAttributeCalls()).toEqual([]);
+				expect(responseObject.usage?.input_tokens).toBe(10);
+				expect(responseObject.usage?.output_tokens).toBe(5);
+				expect(responseObject.usage?.output_tokens_details.reasoning_tokens).toBe(3);
+			});
 		});
 	});
 });

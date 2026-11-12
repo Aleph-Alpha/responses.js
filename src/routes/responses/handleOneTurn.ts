@@ -42,12 +42,16 @@ export async function* handleOneTurnStream(
 		responseObject.output.filter((item) => item.type === "mcp_call").map((item) => item.id)
 	);
 
+	// With OTEL_GENAI_RECORD_USAGE on (standalone), this span is the one
+	// observation per model call that carries its usage. Behind a caller that
+	// records usage itself (Stateful Responses), it is a plain span without
+	// usage, so Langfuse does not count the call twice.
+	const recordUsageOnSpan = config.otelGenaiRecordUsage;
 	const llmSpan = tracer.startSpan(
 		"gen_ai.chat",
 		{
 			attributes: {
-				// The one observation per model call that carries its usage.
-				[LANGFUSE_OBSERVATION_TYPE]: "generation",
+				[LANGFUSE_OBSERVATION_TYPE]: recordUsageOnSpan ? "generation" : "span",
 				"gen_ai.operation.name": "chat",
 				"gen_ai.request.model": payload.model,
 				"gen_ai.request.max_tokens": payload.max_tokens ?? undefined,
@@ -116,7 +120,7 @@ export async function* handleOneTurnStream(
 		const metricAttrs = { status_code: modelCallStatusCode, model_name: payload.model };
 		modelCallCounter.add(1, metricAttrs);
 		modelCallDuration.record(modelCallDurationSeconds, metricAttrs);
-		if (callUsage.last) {
+		if (recordUsageOnSpan && callUsage.last) {
 			llmSpan.setAttributes(usageSpanAttributes(callUsage.last));
 		}
 		llmSpan.end();
