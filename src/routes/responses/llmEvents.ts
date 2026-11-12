@@ -8,4 +8,16 @@ export type LLMOutputEvent =
 	| { type: "reasoning_delta"; content: string }
 	| { type: "tool_call_start"; toolCallId: string; name: string }
 	| { type: "tool_call_args_delta"; content: string }
-	| { type: "usage"; inputTokens: number; outputTokens: number; totalTokens: number };
+	| UsageEvent;
+
+/**
+ * Token usage of one backend call. `reasoningTokens` is part of `outputTokens`
+ * and is set only when the backend reports it.
+ */
+export interface UsageEvent {
+	type: "usage";
+	inputTokens: number;
+	outputTokens: number;
+	totalTokens: number;
+	reasoningTokens?: number;
+}

@@ -5,7 +5,7 @@ import { generateUniqueId } from "../lib/generateUniqueId.js";
 import { trace } from "@opentelemetry/api";
 import type { Response } from "openai/resources/responses/responses";
 import type { PatchedResponseStreamEvent } from "../openai_patch";
-import { type IncompleteResponse, tracer } from "./responses/types.js";
+import { type IncompleteResponse, LANGFUSE_OBSERVATION_TYPE, tracer } from "./responses/types.js";
 import { getRequestTraceContext, recordError, writeWithBackpressure } from "./responses/utils.js";
 import { innerRunStream } from "./responses/innerStream.js";
 
@@ -84,6 +84,11 @@ async function* runCreateResponseStream(
 		"responses.create",
 		{
 			attributes: {
+				// Wraps the model calls (gen_ai.chat spans) and tool calls of this
+				// response. The gen_ai.chat spans own the usage; typing this one as
+				// a plain span and leaving usage off keeps Langfuse from counting
+				// the same tokens twice.
+				[LANGFUSE_OBSERVATION_TYPE]: "span",
 				"gen_ai.operation.name": "chat",
 				"gen_ai.request.model": req.body.model,
 				"gen_ai.request.max_tokens": req.body.max_output_tokens ?? undefined,
@@ -173,12 +178,6 @@ async function* runCreateResponseStream(
 
 		// Response completed event
 		responseObject.status = "completed";
-		if (responseObject.usage) {
-			requestSpan.setAttributes({
-				"gen_ai.usage.input_tokens": responseObject.usage.input_tokens,
-				"gen_ai.usage.output_tokens": responseObject.usage.output_tokens,
-			});
-		}
 		requestSpan.setAttributes({
 			"gen_ai.response.model": responseObject.model,
 			"response.status": responseObject.status,

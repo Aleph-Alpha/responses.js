@@ -131,4 +131,18 @@ describe("parseChatCompletionsStream", () => {
 
 		expect(events).toEqual([{ type: "tool_call_start", toolCallId: "", name: "my_func" }]);
 	});
+
+	it("passes reasoning tokens from completion_tokens_details through", async () => {
+		const stream = createMockStream([createUsageChunk(10, 5, 3)]);
+		const events = await collectEvents(parseChatCompletionsStream(stream, log));
+
+		expect(events).toEqual([{ type: "usage", inputTokens: 10, outputTokens: 5, totalTokens: 15, reasoningTokens: 3 }]);
+	});
+
+	it("passes a reported zero of reasoning tokens through", async () => {
+		const stream = createMockStream([createUsageChunk(10, 5, 0)]);
+		const events = await collectEvents(parseChatCompletionsStream(stream, log));
+
+		expect(events).toEqual([{ type: "usage", inputTokens: 10, outputTokens: 5, totalTokens: 15, reasoningTokens: 0 }]);
+	});
 });
