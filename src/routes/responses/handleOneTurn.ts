@@ -4,14 +4,15 @@ import { OpenAI } from "openai";
 import { Agent } from "undici";
 import type { PatchedResponseStreamEvent } from "../../openai_patch";
 import type { McpServerParams } from "../../schemas.js";
-import type { Context } from "@opentelemetry/api";
+import type { Attributes, Context } from "@opentelemetry/api";
 import type { Logger } from "pino";
-import { type IncompleteResponse, tracer } from "./types.js";
+import { type IncompleteResponse, LANGFUSE_OBSERVATION_TYPE, tracer } from "./types.js";
 import { recordError } from "./utils.js";
 import { modelCallCounter, modelCallDuration } from "../../lib/metrics.js";
 import { config } from "../../lib/config.js";
 import { parseChatCompletionsStream } from "./chatCompletionsParser.js";
 import { buildResponsesEvents, type ReasoningSummaryMode } from "./responsesEventBuilder.js";
+import type { LLMOutputEvent, UsageEvent } from "./llmEvents.js";
 
 // Shared undici Agent per worker process — avoids creating a new connection pool per request.
 const sharedDispatcher = new Agent({
@@ -41,10 +42,16 @@ export async function* handleOneTurnStream(
 		responseObject.output.filter((item) => item.type === "mcp_call").map((item) => item.id)
 	);
 
+	// With OTEL_GENAI_RECORD_USAGE on (standalone), this span is the one
+	// observation per model call that carries its usage. Behind a caller that
+	// records usage itself (Stateful Responses), it is a plain span without
+	// usage, so Langfuse does not count the call twice.
+	const recordUsageOnSpan = config.otelGenaiRecordUsage;
 	const llmSpan = tracer.startSpan(
 		"gen_ai.chat",
 		{
 			attributes: {
+				[LANGFUSE_OBSERVATION_TYPE]: recordUsageOnSpan ? "generation" : "span",
 				"gen_ai.operation.name": "chat",
 				"gen_ai.request.model": payload.model,
 				"gen_ai.request.max_tokens": payload.max_tokens ?? undefined,
@@ -66,6 +73,9 @@ export async function* handleOneTurnStream(
 	});
 	const modelCallStart = performance.now();
 	let modelCallStatusCode = 200;
+	// Usage of this call only. responseObject.usage sums all calls of the
+	// response (agentic loop), so it must not go on this call's span.
+	const callUsage: { last?: UsageEvent } = {};
 	try {
 		// The payload can carry `reasoning_effort: "none"`, which the openai SDK
 		// types do not allow yet. The cast sends the value to the backend unchanged.
@@ -75,7 +85,7 @@ export async function* handleOneTurnStream(
 				: AbortSignal.timeout(config.llmRequestTimeoutMs),
 		});
 
-		const llmEvents = parseChatCompletionsStream(stream, log);
+		const llmEvents = recordUsage(parseChatCompletionsStream(stream, log), callUsage);
 		// TODO: switch to parseResponsesApiStream when backendMode is responses_api
 		// const llmEvents =
 		// 	config.backendMode === "responses_api"
@@ -110,12 +120,40 @@ export async function* handleOneTurnStream(
 		const metricAttrs = { status_code: modelCallStatusCode, model_name: payload.model };
 		modelCallCounter.add(1, metricAttrs);
 		modelCallDuration.record(modelCallDurationSeconds, metricAttrs);
-		if (responseObject.usage) {
-			llmSpan.setAttributes({
-				"gen_ai.usage.input_tokens": responseObject.usage.input_tokens,
-				"gen_ai.usage.output_tokens": responseObject.usage.output_tokens,
-			});
+		if (recordUsageOnSpan && callUsage.last) {
+			llmSpan.setAttributes(usageSpanAttributes(callUsage.last));
 		}
 		llmSpan.end();
 	}
+}
+
+/*
+ * Pass LLM events through unchanged, keeping the last usage event in `into`.
+ */
+async function* recordUsage(
+	events: AsyncIterable<LLMOutputEvent>,
+	into: { last?: UsageEvent }
+): AsyncGenerator<LLMOutputEvent> {
+	for await (const event of events) {
+		if (event.type === "usage") {
+			into.last = event;
+		}
+		yield event;
+	}
+}
+
+/*
+ * GenAI usage attributes for one model call. Langfuse reads
+ * gen_ai.usage.reasoning.output_tokens as output_reasoning_tokens and
+ * subtracts it from output, so the call's total is unchanged.
+ */
+export function usageSpanAttributes(usage: UsageEvent): Attributes {
+	const attributes: Attributes = {
+		"gen_ai.usage.input_tokens": usage.inputTokens,
+		"gen_ai.usage.output_tokens": usage.outputTokens,
+	};
+	if (usage.reasoningTokens !== undefined) {
+		attributes["gen_ai.usage.reasoning.output_tokens"] = usage.reasoningTokens;
+	}
+	return attributes;
 }

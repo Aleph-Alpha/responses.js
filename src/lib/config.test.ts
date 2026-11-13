@@ -83,6 +83,22 @@ describe("config", () => {
 		expect(cfg.otelGenaiCaptureToolContent).toBe(true);
 	});
 
+	it("records GenAI usage on model call spans by default", async () => {
+		delete process.env.OTEL_GENAI_RECORD_USAGE;
+
+		const cfg = await loadConfig();
+
+		expect(cfg.otelGenaiRecordUsage).toBe(true);
+	});
+
+	it("turns off GenAI usage on spans with OTEL_GENAI_RECORD_USAGE=false", async () => {
+		process.env.OTEL_GENAI_RECORD_USAGE = "false";
+
+		const cfg = await loadConfig();
+
+		expect(cfg.otelGenaiRecordUsage).toBe(false);
+	});
+
 	it("reads string env vars correctly", async () => {
 		process.env.HOST = "127.0.0.1";
 		process.env.OPENAI_BASE_URL = "http://localhost:11434/v1";

@@ -14,11 +14,13 @@ export async function* parseChatCompletionsStream(
 ): AsyncGenerator<LLMOutputEvent> {
 	for await (const chunk of stream) {
 		if (chunk.usage) {
+			const reasoningTokens = chunk.usage.completion_tokens_details?.reasoning_tokens;
 			yield {
 				type: "usage",
 				inputTokens: chunk.usage.prompt_tokens,
 				outputTokens: chunk.usage.completion_tokens,
 				totalTokens: chunk.usage.total_tokens,
+				...(typeof reasoningTokens === "number" ? { reasoningTokens } : {}),
 			};
 		}
 

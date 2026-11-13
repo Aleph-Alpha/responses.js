@@ -35,6 +35,8 @@ vi.mock("./innerStream.js", () => ({
 
 import { postCreateResponse } from "../responses.js";
 import { createMockReq, createMockRes } from "./__test_helpers__/mocks.js";
+import { trace } from "@opentelemetry/api";
+import type { IncompleteResponse } from "./types.js";
 
 describe("postCreateResponse", () => {
 	beforeEach(() => {
@@ -194,5 +196,45 @@ describe("postCreateResponse", () => {
 
 		const jsonCall = (res.json as ReturnType<typeof vi.fn>).mock.calls[0][0];
 		expect(jsonCall.error.message).toBe("An error occurred in stream");
+	});
+
+	it("types responses.create as a plain span that carries no usage", async () => {
+		mockInnerRunStream.mockImplementation((_req: unknown, responseObject: IncompleteResponse) => {
+			// What a model call inside the loop leaves on the response.
+			responseObject.usage = {
+				input_tokens: 10,
+				input_tokens_details: { cached_tokens: 0 },
+				output_tokens: 5,
+				output_tokens_details: { reasoning_tokens: 0 },
+				total_tokens: 15,
+			};
+			return (async function* () {
+				// no events
+			})();
+		});
+
+		const req = createMockReq({ stream: false });
+		const res = createMockRes();
+		await postCreateResponse(req, res as Parameters<typeof postCreateResponse>[1]);
+
+		const tracer = trace.getTracer("") as unknown as { startSpan: ReturnType<typeof vi.fn> };
+		const [name, options] = tracer.startSpan.mock.calls[0];
+		expect(name).toBe("responses.create");
+		expect(options.attributes["langfuse.observation.type"]).toBe("span");
+
+		const span = tracer.startSpan("") as unknown as {
+			setAttribute: ReturnType<typeof vi.fn>;
+			setAttributes: ReturnType<typeof vi.fn>;
+		};
+		const keys = [
+			...span.setAttributes.mock.calls.flatMap((call) => Object.keys(call[0] as object)),
+			...span.setAttribute.mock.calls.map((call) => call[0] as string),
+			...Object.keys(options.attributes),
+		];
+		expect(keys.filter((key) => key.startsWith("gen_ai.usage."))).toEqual([]);
+
+		// The API response still reports the usage.
+		const body = (res.json as ReturnType<typeof vi.fn>).mock.calls[0][0];
+		expect(body.usage.total_tokens).toBe(15);
 	});
 });

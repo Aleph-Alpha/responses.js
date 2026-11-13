@@ -233,4 +233,20 @@ describe("buildResponsesEvents", () => {
 		expect(reasoningItem?.summary).toEqual([]);
 		expect(events.map((e) => e.type)).not.toContain("response.reasoning_summary_text.delta");
 	});
+
+	it("reports reasoning tokens in the Responses API usage, summed over calls", async () => {
+		const responseObject = createMockResponseObject();
+		for (const reasoningTokens of [3, 4]) {
+			const llmEvents: LLMOutputEvent[] = [
+				{ type: "text_delta", content: "Hi" },
+				{ type: "usage", inputTokens: 10, outputTokens: 5, totalTokens: 15, reasoningTokens },
+			];
+			await collectEvents(
+				buildResponsesEvents(fromArray(llmEvents), responseObject, new Map(), traceContext, log, new Set())
+			);
+		}
+
+		expect(responseObject.usage?.output_tokens).toBe(10);
+		expect(responseObject.usage?.output_tokens_details.reasoning_tokens).toBe(7);
+	});
 });

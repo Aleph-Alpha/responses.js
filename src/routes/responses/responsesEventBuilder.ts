@@ -38,6 +38,7 @@ export async function* buildResponsesEvents(
 	let previousInputTokens = responseObject.usage?.input_tokens ?? 0;
 	let previousOutputTokens = responseObject.usage?.output_tokens ?? 0;
 	let previousTotalTokens = responseObject.usage?.total_tokens ?? 0;
+	let previousReasoningTokens = responseObject.usage?.output_tokens_details?.reasoning_tokens ?? 0;
 	let currentTextMode: "text" | "reasoning" = "text";
 	const mirrorRawReasoningToSummary = reasoningSummaryMode === "detailed";
 
@@ -48,7 +49,7 @@ export async function* buildResponsesEvents(
 					input_tokens: previousInputTokens + event.inputTokens,
 					input_tokens_details: { cached_tokens: 0 },
 					output_tokens: previousOutputTokens + event.outputTokens,
-					output_tokens_details: { reasoning_tokens: 0 },
+					output_tokens_details: { reasoning_tokens: previousReasoningTokens + (event.reasoningTokens ?? 0) },
 					total_tokens: previousTotalTokens + event.totalTokens,
 				};
 				break;

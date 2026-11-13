@@ -48,6 +48,7 @@ The server will be available at `http://localhost:3000`.
 `responses.js` emits OpenTelemetry spans for response execution (`gen_ai.operation.name=chat`) and tool execution (`gen_ai.operation.name=execute_tool`).
 
 - Parent trace context is extracted from incoming propagation headers (`traceparent`/`tracestate`), so spans attach to your upstream instrumentation.
+- Token usage is recorded once per model call, on its `gen_ai.chat` span (`gen_ai.usage.input_tokens`, `gen_ai.usage.output_tokens`, and `gen_ai.usage.reasoning.output_tokens` when the backend reports `completion_tokens_details.reasoning_tokens`). The enclosing `responses.create` span carries no usage and sets `langfuse.observation.type=span`, so Langfuse counts each call's tokens once. Behind a caller that records usage itself, such as Stateful Responses, set `OTEL_GENAI_RECORD_USAGE=false` (default `true`): `gen_ai.chat` is then a plain span (`langfuse.observation.type=span`) without `gen_ai.usage.*` attributes, and the Responses API output still reports usage, including `output_tokens_details.reasoning_tokens`.
 - Tool metadata is always traced (`gen_ai.tool.name`, `gen_ai.tool.type`, `gen_ai.tool.call.id`, `mcp.server_label`).
 - Tool arguments/results are optional and controlled by:
 

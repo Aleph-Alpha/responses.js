@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // Mock OpenAI — must be a class so `new OpenAI(...)` works
 const mockCreate = vi.fn();
@@ -58,6 +58,7 @@ vi.mock("../../mcp.js", () => ({
 }));
 
 import { handleOneTurnStream } from "./handleOneTurn.js";
+import { config } from "../../lib/config.js";
 import {
 	createMockResponseObject,
 	createMockLogger,
@@ -353,5 +354,113 @@ describe("handleOneTurnStream", () => {
 			message: "auth failure",
 		});
 		expect(mockSpan.end).toHaveBeenCalled();
+	});
+
+	describe("Langfuse usage ownership", () => {
+		const tracer = () => trace.getTracer("") as unknown as { startSpan: ReturnType<typeof vi.fn> };
+		const span = () => tracer().startSpan("") as unknown as { setAttributes: ReturnType<typeof vi.fn> };
+
+		function usageAttributeCalls(): Record<string, unknown>[] {
+			return span()
+				.setAttributes.mock.calls.map((call) => call[0] as Record<string, unknown>)
+				.filter((attrs) => Object.keys(attrs).some((key) => key.startsWith("gen_ai.usage.")));
+		}
+
+		it("types the model call span as a generation", async () => {
+			mockCreate.mockResolvedValue(createMockStream([createTextChunk("Hi"), createUsageChunk(10, 5)]));
+
+			await collectEvents(
+				handleOneTurnStream("key", { ...basePayload }, createMockResponseObject(), new Map(), {}, traceContext, log)
+			);
+
+			const [name, options] = tracer().startSpan.mock.calls[0];
+			expect(name).toBe("gen_ai.chat");
+			expect(options.attributes["langfuse.observation.type"]).toBe("generation");
+		});
+
+		it("puts only this call's usage on the span, not the response total", async () => {
+			mockCreate.mockResolvedValue(createMockStream([createTextChunk("Hi"), createUsageChunk(10, 5)]));
+			// An earlier call of the same response (agentic loop) already used tokens.
+			const responseObject = createMockResponseObject({
+				usage: {
+					input_tokens: 100,
+					input_tokens_details: { cached_tokens: 0 },
+					output_tokens: 50,
+					output_tokens_details: { reasoning_tokens: 0 },
+					total_tokens: 150,
+				},
+			});
+
+			await collectEvents(
+				handleOneTurnStream("key", { ...basePayload }, responseObject, new Map(), {}, traceContext, log)
+			);
+
+			expect(responseObject.usage?.total_tokens).toBe(165);
+			expect(usageAttributeCalls()).toEqual([{ "gen_ai.usage.input_tokens": 10, "gen_ai.usage.output_tokens": 5 }]);
+		});
+
+		it("records the backend's reasoning tokens on the span", async () => {
+			mockCreate.mockResolvedValue(createMockStream([createTextChunk("Hi"), createUsageChunk(10, 5, 3)]));
+
+			await collectEvents(
+				handleOneTurnStream("key", { ...basePayload }, createMockResponseObject(), new Map(), {}, traceContext, log)
+			);
+
+			expect(usageAttributeCalls()).toEqual([
+				{
+					"gen_ai.usage.input_tokens": 10,
+					"gen_ai.usage.output_tokens": 5,
+					"gen_ai.usage.reasoning.output_tokens": 3,
+				},
+			]);
+		});
+
+		it("sets no usage when the backend reported none", async () => {
+			mockCreate.mockResolvedValue(createMockStream([createTextChunk("Hi")]));
+
+			await collectEvents(
+				handleOneTurnStream("key", { ...basePayload }, createMockResponseObject(), new Map(), {}, traceContext, log)
+			);
+
+			expect(usageAttributeCalls()).toEqual([]);
+		});
+
+		describe("with OTEL_GENAI_RECORD_USAGE=false (a caller such as Stateful Responses owns usage)", () => {
+			const mutableConfig = config as { otelGenaiRecordUsage: boolean };
+
+			beforeEach(() => {
+				mutableConfig.otelGenaiRecordUsage = false;
+			});
+
+			afterEach(() => {
+				mutableConfig.otelGenaiRecordUsage = true;
+			});
+
+			it("types the model call span as a plain span", async () => {
+				mockCreate.mockResolvedValue(createMockStream([createTextChunk("Hi"), createUsageChunk(10, 5)]));
+
+				await collectEvents(
+					handleOneTurnStream("key", { ...basePayload }, createMockResponseObject(), new Map(), {}, traceContext, log)
+				);
+
+				const [name, options] = tracer().startSpan.mock.calls[0];
+				expect(name).toBe("gen_ai.chat");
+				expect(options.attributes["langfuse.observation.type"]).toBe("span");
+			});
+
+			it("sets no usage on the span but still reports it, with reasoning tokens, in the response", async () => {
+				mockCreate.mockResolvedValue(createMockStream([createTextChunk("Hi"), createUsageChunk(10, 5, 3)]));
+				const responseObject = createMockResponseObject();
+
+				await collectEvents(
+					handleOneTurnStream("key", { ...basePayload }, responseObject, new Map(), {}, traceContext, log)
+				);
+
+				expect(usageAttributeCalls()).toEqual([]);
+				expect(responseObject.usage?.input_tokens).toBe(10);
+				expect(responseObject.usage?.output_tokens).toBe(5);
+				expect(responseObject.usage?.output_tokens_details.reasoning_tokens).toBe(3);
+			});
+		});
 	});
 });

@@ -150,7 +150,7 @@ export function createToolCallChunk(
 	} as ChatCompletionChunk;
 }
 
-export function createUsageChunk(prompt: number, completion: number): ChatCompletionChunk {
+export function createUsageChunk(prompt: number, completion: number, reasoning?: number): ChatCompletionChunk {
 	return {
 		id: "chatcmpl-test",
 		object: "chat.completion.chunk",
@@ -161,6 +161,7 @@ export function createUsageChunk(prompt: number, completion: number): ChatComple
 			prompt_tokens: prompt,
 			completion_tokens: completion,
 			total_tokens: prompt + completion,
+			...(reasoning === undefined ? {} : { completion_tokens_details: { reasoning_tokens: reasoning } }),
 		},
 	} as ChatCompletionChunk;
 }
