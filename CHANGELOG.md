@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.3.8](https://github.com/Aleph-Alpha/responses.js/compare/v1.3.7...v1.3.8) (2026-11-13)
+
+
+### Bug Fixes
+
+* bump hono and @hono/node-server overrides for CVEs ([#145](https://github.com/Aleph-Alpha/responses.js/issues/145)) ([817f89f](https://github.com/Aleph-Alpha/responses.js/commit/817f89f9bd19150590a9ed3e128b2286eb8b054e))
+* record token usage once per model call and pass reasoning tokens through ([#143](https://github.com/Aleph-Alpha/responses.js/issues/143)) ([d235dd3](https://github.com/Aleph-Alpha/responses.js/commit/d235dd35bab4f8834194da90f0b48da1e5435070))
+
 ## [1.3.7](https://github.com/Aleph-Alpha/responses.js/compare/v1.3.6...v1.3.7) (2026-11-02)
 
 
